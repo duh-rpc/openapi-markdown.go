@@ -6,33 +6,27 @@ A comprehensive API for managing a pet store with users, pets, and orders
 
 HTTP Request | Description
 -------------|------------
-GET [/pets](#getpets) | List all pets
-POST [/pets](#postpets) | Create a new pet
-GET [/pets/{petId}](#getpetspetid) | Get a pet by ID
-DELETE [/pets/{petId}](#deletepetspetid) | Delete a pet
-GET [/users](#getusers) | List all users
-POST [/users](#postusers) | Create a new user
-GET [/users/{userId}](#getusersuserid) | Get user by ID
-GET [/users/{userId}/orders](#getusersuseridorders) | Get user orders
-GET [/orders](#getorders) | List all orders
-POST [/orders](#postorders) | Create a new order
-GET [/orders/{orderId}](#getordersorderid) | Get order by ID
-GET [/health](#gethealth) | Health check endpoint
-GET [/metrics](#getmetrics) | Get API metrics
+GET [/v3/pets](#getv3pets) | List all pets
+POST [/v3/pets](#postv3pets) | Create a new pet
+POST [/v3/pets.delete](#postv3petsdelete) | Delete a pet
+GET [/v3/pets/{petId}](#getv3petspetid) | Get a pet by ID
+GET [/v3/users](#getv3users) | List all users
+POST [/v3/users](#postv3users) | Create a new user
+GET [/v3/users/{userId}](#getv3usersuserid) | Get user by ID
+GET [/v3/users/{userId}/orders](#getv3usersuseridorders) | Get user orders
+GET [/v3/orders](#getv3orders) | List all orders
+POST [/v3/orders](#postv3orders) | Create a new order
+GET [/v3/orders/{orderId}](#getv3ordersorderid) | Get order by ID
+GET [/v3/health](#getv3health) | Health check endpoint
+GET [/v3/metrics](#getv3metrics) | Get API metrics
 
 ## admin
 
-### DELETE /pets/{petId}
+### POST /v3/pets.delete
 
 Delete a pet
 
 Removes a pet from the store inventory
-
-#### Path Parameters
-
-Name | Description | Required | Type
------|-------------|----------|-----
-petId | ID of pet to delete | true | string
 
 #### Header Parameters
 
@@ -54,7 +48,7 @@ Pet not found
 
 ## orders
 
-### GET /users/{userId}/orders
+### GET /v3/users/{userId}/orders
 
 Get user orders
 
@@ -80,7 +74,7 @@ Successful response
 
 User not found
 
-### GET /orders
+### GET /v3/orders
 
 List all orders
 
@@ -90,13 +84,14 @@ Returns a list of all orders in the system
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
-limit | Maximum number of orders to return | false | integer
+after | Cursor for pagination - returns orders after this cursor | false | string
+first | Number of orders to return (cursor-based pagination) | false | integer
 
 ##### 200 Response
 
 Successful response
 
-### POST /orders
+### POST /v3/orders
 
 Create a new order
 
@@ -110,7 +105,7 @@ Order created successfully
 
 Invalid order data
 
-### GET /orders/{orderId}
+### GET /v3/orders/{orderId}
 
 Get order by ID
 
@@ -132,7 +127,7 @@ Order not found
 
 ## pets
 
-### GET /pets
+### GET /v3/pets
 
 List all pets
 
@@ -142,8 +137,8 @@ Returns a paginated list of all pets in the store
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
-limit | Maximum number of pets to return | false | integer
-offset | Number of pets to skip | false | integer
+after | Cursor for pagination - returns pets after this cursor | false | string
+first | Number of pets to return (cursor-based pagination) | false | integer
 tag | Filter by tag | false | string
 
 ##### 200 Response
@@ -154,7 +149,7 @@ Successful response with pet list
 
 Invalid request parameters
 
-### POST /pets
+### POST /v3/pets
 
 Create a new pet
 
@@ -174,37 +169,11 @@ Pet created successfully
 
 Invalid pet data
 
-### GET /pets/{petId}
-
-Get a pet by ID
-
-Returns detailed information about a specific pet
-
-#### Path Parameters
-
-Name | Description | Required | Type
------|-------------|----------|-----
-petId | ID of pet to return | true | string
-
-##### 200 Response
-
-Successful response
-
-##### 404 Response
-
-Pet not found
-
-### DELETE /pets/{petId}
+### POST /v3/pets.delete
 
 Delete a pet
 
 Removes a pet from the store inventory
-
-#### Path Parameters
-
-Name | Description | Required | Type
------|-------------|----------|-----
-petId | ID of pet to delete | true | string
 
 #### Header Parameters
 
@@ -224,9 +193,29 @@ Unauthorized
 
 Pet not found
 
+### GET /v3/pets/{petId}
+
+Get a pet by ID
+
+Returns detailed information about a specific pet
+
+#### Path Parameters
+
+Name | Description | Required | Type
+-----|-------------|----------|-----
+petId | ID of pet to return | true | string
+
+##### 200 Response
+
+Successful response
+
+##### 404 Response
+
+Pet not found
+
 ## users
 
-### GET /users
+### GET /v3/users
 
 List all users
 
@@ -242,7 +231,7 @@ active | Filter by active status | false | boolean
 
 Successful response
 
-### POST /users
+### POST /v3/users
 
 Create a new user
 
@@ -256,7 +245,7 @@ User created successfully
 
 Invalid user data
 
-### GET /users/{userId}
+### GET /v3/users/{userId}
 
 Get user by ID
 
@@ -276,7 +265,7 @@ Successful response
 
 User not found
 
-### GET /users/{userId}/orders
+### GET /v3/users/{userId}/orders
 
 Get user orders
 
@@ -304,7 +293,7 @@ User not found
 
 ## Default APIs
 
-### GET /health
+### GET /v3/health
 
 Health check endpoint
 
@@ -314,7 +303,7 @@ Returns the health status of the API
 
 Service is healthy
 
-### GET /metrics
+### GET /v3/metrics
 
 Get API metrics
 

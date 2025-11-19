@@ -5,22 +5,22 @@ info:
   version: 2.0.0
 
 paths:
-  /pets:
+  /v3/pets:
     get:
       summary: List all pets
       description: Returns a paginated list of all pets in the store
       tags:
         - pets
       parameters:
-        - name: limit
+        - name: after
           in: query
-          description: Maximum number of pets to return
+          description: Cursor for pagination - returns pets after this cursor
           required: false
           schema:
-            type: integer
-        - name: offset
+            type: string
+        - name: first
           in: query
-          description: Number of pets to skip
+          description: Number of pets to return (cursor-based pagination)
           required: false
           schema:
             type: integer
@@ -54,7 +54,39 @@ paths:
         '400':
           description: Invalid pet data
 
-  /pets/{petId}:
+  /v3/pets.delete:
+    post:
+      summary: Delete a pet
+      description: Removes a pet from the store inventory
+      tags:
+        - pets
+        - admin
+      parameters:
+        - name: X-Admin-Token
+          in: header
+          description: Admin authorization token
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PetDeleteRequest'
+      responses:
+        '200':
+          description: Pet deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetDeleteResponse'
+        '404':
+          description: Pet not found
+        '403':
+          description: Unauthorized
+
+  /v3/pets/{petId}:
     get:
       summary: Get a pet by ID
       description: Returns detailed information about a specific pet
@@ -73,34 +105,7 @@ paths:
         '404':
           description: Pet not found
 
-    delete:
-      summary: Delete a pet
-      description: Removes a pet from the store inventory
-      tags:
-        - pets
-        - admin
-      parameters:
-        - name: petId
-          in: path
-          description: ID of pet to delete
-          required: true
-          schema:
-            type: string
-        - name: X-Admin-Token
-          in: header
-          description: Admin authorization token
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Pet deleted successfully
-        '404':
-          description: Pet not found
-        '403':
-          description: Unauthorized
-
-  /users:
+  /v3/users:
     get:
       summary: List all users
       description: Returns a list of registered users
@@ -128,7 +133,7 @@ paths:
         '400':
           description: Invalid user data
 
-  /users/{userId}:
+  /v3/users/{userId}:
     get:
       summary: Get user by ID
       description: Returns detailed user information
@@ -147,7 +152,7 @@ paths:
         '404':
           description: User not found
 
-  /users/{userId}/orders:
+  /v3/users/{userId}/orders:
     get:
       summary: Get user orders
       description: Returns all orders placed by a specific user
@@ -173,16 +178,22 @@ paths:
         '404':
           description: User not found
 
-  /orders:
+  /v3/orders:
     get:
       summary: List all orders
       description: Returns a list of all orders in the system
       tags:
         - orders
       parameters:
-        - name: limit
+        - name: after
           in: query
-          description: Maximum number of orders to return
+          description: Cursor for pagination - returns orders after this cursor
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Number of orders to return (cursor-based pagination)
           required: false
           schema:
             type: integer
@@ -201,7 +212,7 @@ paths:
         '400':
           description: Invalid order data
 
-  /orders/{orderId}:
+  /v3/orders/{orderId}:
     get:
       summary: Get order by ID
       description: Returns detailed order information
@@ -220,7 +231,7 @@ paths:
         '404':
           description: Order not found
 
-  /health:
+  /v3/health:
     get:
       summary: Health check endpoint
       description: Returns the health status of the API
@@ -228,7 +239,7 @@ paths:
         '200':
           description: Service is healthy
 
-  /metrics:
+  /v3/metrics:
     get:
       summary: Get API metrics
       description: Returns usage metrics and statistics
@@ -244,3 +255,26 @@ paths:
           description: Metrics data
         '403':
           description: Unauthorized
+
+components:
+  schemas:
+    PetDeleteRequest:
+      type: object
+      required:
+        - petId
+      properties:
+        petId:
+          type: string
+          description: ID of pet to delete
+
+    PetDeleteResponse:
+      type: object
+      properties:
+        pet:
+          type: object
+          properties:
+            petId:
+              type: string
+              description: ID of the deleted pet
+            success:
+              type: boolean
