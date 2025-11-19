@@ -58,6 +58,47 @@ fmt.Printf("Parsed %d paths\n", result.Debug.ParsedPaths)
 fmt.Printf("Extracted %d operations\n", result.Debug.ExtractedOps)
 ```
 
+## Complete Example
+
+A comprehensive example demonstrating all converter features is available in the `examples/` directory:
+
+- `examples/openapi.yaml` - Complete OpenAPI specification with multiple tags, parameters, and responses
+- `examples/example.md` - Expected markdown output demonstrating all features
+
+The example demonstrates:
+- Multiple tags (pets, users, orders, admin)
+- Untagged operations (Default APIs section)
+- Operations with multiple tags appearing in each section
+- All parameter types: path, query, header
+- All parameter data types: string, integer, boolean
+- Multiple response codes (200, 201, 400, 403, 404)
+- Rich descriptions and summaries
+
+### Regenerating Example Output
+
+When markdown format changes are intentional, regenerate the expected output:
+
+```bash
+cat > /tmp/regenerate_example.go <<'EOF'
+package main
+
+import (
+    "os"
+    conv "github.com/duh-rpc/openapi-markdown.go"
+)
+
+func main() {
+    openapi, _ := os.ReadFile("examples/openapi.yaml")
+    result, _ := conv.Convert(openapi, conv.ConvertOptions{
+        Title: "Pet Store API",
+        Description: "A comprehensive API for managing a pet store with users, pets, and orders",
+    })
+    os.WriteFile("examples/example.md", result.Markdown, 0644)
+}
+EOF
+go run /tmp/regenerate_example.go
+```
+
 ## Testing Philosophy
 
 This library follows **functional testing principles**:

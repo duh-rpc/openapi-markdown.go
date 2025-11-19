@@ -1,6 +1,7 @@
 package conv_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -918,4 +919,23 @@ paths:
 	assert.Equal(t, 1, result.Debug.ResponseCounts["201"])
 	assert.Equal(t, 1, result.Debug.ResponseCounts["403"])
 	assert.Equal(t, 2, result.Debug.ResponseCounts["404"])
+}
+
+func TestConvertCompleteExample(t *testing.T) {
+	openapi, err := os.ReadFile("examples/openapi.yaml")
+	require.NoError(t, err)
+
+	expected, err := os.ReadFile("examples/example.md")
+	require.NoError(t, err)
+
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
+		Title:       "Pet Store API",
+		Description: "A comprehensive API for managing a pet store with users, pets, and orders",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, string(expected), string(result.Markdown))
+
+	assert.Equal(t, 13, result.EndpointCount)
+	assert.Equal(t, 5, result.TagCount)
 }
