@@ -203,9 +203,104 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 					builder.WriteString(e.description)
 					builder.WriteString("\n\n")
 				}
+
+				renderParameters(&builder, e.operation)
+				renderResponses(&builder, e.operation)
 			}
 		}
 	}
 
 	return builder.String()
+}
+
+func renderParameters(builder *strings.Builder, op *v3.Operation) {
+	if op == nil || op.Parameters == nil {
+		return
+	}
+
+	pathParams := []v3.Parameter{}
+	queryParams := []v3.Parameter{}
+	headerParams := []v3.Parameter{}
+
+	for _, param := range op.Parameters {
+		if param == nil {
+			continue
+		}
+		switch param.In {
+		case "path":
+			pathParams = append(pathParams, *param)
+		case "query":
+			queryParams = append(queryParams, *param)
+		case "header":
+			headerParams = append(headerParams, *param)
+		}
+	}
+
+	renderParamTable(builder, "Path", pathParams)
+	renderParamTable(builder, "Query", queryParams)
+	renderParamTable(builder, "Header", headerParams)
+}
+
+func renderParamTable(builder *strings.Builder, paramType string, params []v3.Parameter) {
+	if len(params) == 0 {
+		return
+	}
+
+	builder.WriteString("#### ")
+	builder.WriteString(paramType)
+	builder.WriteString(" Parameters\n\n")
+	builder.WriteString("Name | Description | Required | Type\n")
+	builder.WriteString("-----|-------------|----------|-----\n")
+
+	for _, param := range params {
+		builder.WriteString(param.Name)
+		builder.WriteString(" | ")
+
+		if param.Description != "" {
+			builder.WriteString(param.Description)
+		}
+		builder.WriteString(" | ")
+
+		if param.Required != nil && *param.Required {
+			builder.WriteString("true")
+		} else {
+			builder.WriteString("false")
+		}
+		builder.WriteString(" | ")
+
+		if param.Schema != nil && param.Schema.Schema() != nil {
+			schema := param.Schema.Schema()
+			if len(schema.Type) > 0 {
+				builder.WriteString(schema.Type[0])
+			}
+		}
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("\n")
+}
+
+func renderResponses(builder *strings.Builder, op *v3.Operation) {
+	if op == nil || op.Responses == nil || op.Responses.Codes == nil {
+		return
+	}
+
+	codes := []string{}
+	for pair := op.Responses.Codes.First(); pair != nil; pair = pair.Next() {
+		codes = append(codes, pair.Key())
+	}
+	sort.Strings(codes)
+
+	for _, code := range codes {
+		resp := op.Responses.Codes.GetOrZero(code)
+
+		builder.WriteString("##### ")
+		builder.WriteString(code)
+		builder.WriteString(" Response\n\n")
+
+		if resp.Description != "" {
+			builder.WriteString(resp.Description)
+			builder.WriteString("\n\n")
+		}
+	}
 }
