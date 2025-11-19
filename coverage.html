@@ -1,0 +1,469 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>openapi-markdown.go: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/duh-rpc/openapi-markdown.go/convert.go (97.7%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package conv
+
+import (
+        "fmt"
+        "regexp"
+        "sort"
+        "strings"
+
+        "github.com/pb33f/libopenapi"
+        v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+)
+
+// ConvertResult contains markdown output and generation metadata
+type ConvertResult struct {
+        Markdown      []byte
+        EndpointCount int
+        TagCount      int
+        Debug         *DebugInfo
+}
+
+// DebugInfo provides visibility into internal conversion process for testing
+type DebugInfo struct {
+        ParsedPaths     int
+        ExtractedOps    int
+        TagsFound       []string
+        UntaggedOps     int
+        ParameterCounts map[string]int
+        ResponseCounts  map[string]int
+}
+
+// ConvertOptions configures markdown generation
+type ConvertOptions struct {
+        Title       string
+        Description string
+        Debug       bool
+}
+
+// Convert converts OpenAPI 3.x to markdown API documentation
+func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) <span class="cov8" title="1">{
+        if len(openapi) == 0 </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("openapi input cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if opts.Title == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("title cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">doc, err := libopenapi.NewDocument(openapi)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to parse openapi document: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if doc.GetVersion() == "" </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to determine openapi version")
+        }</span>
+
+        <span class="cov8" title="1">if !strings.HasPrefix(doc.GetVersion(), "3.") </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("only openapi 3.x is supported, got version: %s", doc.GetVersion())
+        }</span>
+
+        <span class="cov8" title="1">v3Model, err := doc.BuildV3Model()
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to build openapi 3.x model: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if v3Model == nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("only openapi 3.x is supported")
+        }</span>
+
+        <span class="cov8" title="1">endpoints := extractEndpoints(v3Model.Model)
+        tagGroups := groupByTags(endpoints)
+        markdown := generateMarkdown(opts, endpoints, tagGroups)
+
+        result := &amp;ConvertResult{
+                Markdown:      []byte(markdown),
+                EndpointCount: len(endpoints),
+                TagCount:      len(tagGroups),
+        }
+
+        if opts.Debug </span><span class="cov8" title="1">{
+                result.Debug = collectDebugInfo(v3Model.Model, endpoints, tagGroups)
+        }</span>
+
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+type endpoint struct {
+        method      string
+        path        string
+        summary     string
+        description string
+        tags        []string
+        operation   *v3.Operation
+}
+
+func extractEndpoints(model v3.Document) []endpoint <span class="cov8" title="1">{
+        var endpoints []endpoint
+
+        if model.Paths == nil || model.Paths.PathItems == nil </span><span class="cov0" title="0">{
+                return endpoints
+        }</span>
+
+        <span class="cov8" title="1">for pathPair := model.Paths.PathItems.First(); pathPair != nil; pathPair = pathPair.Next() </span><span class="cov8" title="1">{
+                path := pathPair.Key()
+                pathItem := pathPair.Value()
+
+                for opPair := pathItem.GetOperations().First(); opPair != nil; opPair = opPair.Next() </span><span class="cov8" title="1">{
+                        method := opPair.Key()
+                        op := opPair.Value()
+
+                        e := endpoint{
+                                method:      strings.ToUpper(method),
+                                path:        path,
+                                summary:     op.Summary,
+                                description: op.Description,
+                                operation:   op,
+                        }
+
+                        if len(op.Tags) &gt; 0 </span><span class="cov8" title="1">{
+                                e.tags = op.Tags
+                        }</span>
+
+                        <span class="cov8" title="1">endpoints = append(endpoints, e)</span>
+                }
+        }
+
+        <span class="cov8" title="1">return endpoints</span>
+}
+
+func groupByTags(endpoints []endpoint) map[string][]endpoint <span class="cov8" title="1">{
+        tagGroups := make(map[string][]endpoint)
+
+        for _, e := range endpoints </span><span class="cov8" title="1">{
+                if len(e.tags) == 0 </span><span class="cov8" title="1">{
+                        tagGroups["Default APIs"] = append(tagGroups["Default APIs"], e)
+                }</span> else<span class="cov8" title="1"> {
+                        for _, tag := range e.tags </span><span class="cov8" title="1">{
+                                tagGroups[tag] = append(tagGroups[tag], e)
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">return tagGroups</span>
+}
+
+func makeAnchor(method, path string) string <span class="cov8" title="1">{
+        combined := method + " " + path
+        combined = strings.ToLower(combined)
+
+        reg := regexp.MustCompile(`[^a-z0-9]+`)
+        combined = reg.ReplaceAllString(combined, "")
+
+        return combined
+}</span>
+
+func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[string][]endpoint) string <span class="cov8" title="1">{
+        var builder strings.Builder
+
+        builder.WriteString("# ")
+        builder.WriteString(opts.Title)
+        builder.WriteString("\n\n")
+
+        if opts.Description != "" </span><span class="cov8" title="1">{
+                builder.WriteString(opts.Description)
+                builder.WriteString("\n\n")
+        }</span>
+
+        <span class="cov8" title="1">if len(endpoints) &gt; 0 </span><span class="cov8" title="1">{
+                builder.WriteString("## Table of Contents\n\n")
+                builder.WriteString("HTTP Request | Description\n")
+                builder.WriteString("-------------|------------\n")
+
+                for _, e := range endpoints </span><span class="cov8" title="1">{
+                        anchor := makeAnchor(e.method, e.path)
+                        builder.WriteString(e.method)
+                        builder.WriteString(" [")
+                        builder.WriteString(e.path)
+                        builder.WriteString("](#")
+                        builder.WriteString(anchor)
+                        builder.WriteString(") | ")
+                        builder.WriteString(e.summary)
+                        builder.WriteString("\n")
+                }</span>
+
+                <span class="cov8" title="1">builder.WriteString("\n")
+
+                tags := make([]string, 0, len(tagGroups))
+                for tag := range tagGroups </span><span class="cov8" title="1">{
+                        tags = append(tags, tag)
+                }</span>
+                <span class="cov8" title="1">sort.Strings(tags)
+
+                defaultIndex := -1
+                for i, tag := range tags </span><span class="cov8" title="1">{
+                        if tag == "Default APIs" </span><span class="cov8" title="1">{
+                                defaultIndex = i
+                                break</span>
+                        }
+                }
+                <span class="cov8" title="1">if defaultIndex != -1 </span><span class="cov8" title="1">{
+                        tags = append(tags[:defaultIndex], tags[defaultIndex+1:]...)
+                        tags = append(tags, "Default APIs")
+                }</span>
+
+                <span class="cov8" title="1">for _, tag := range tags </span><span class="cov8" title="1">{
+                        endpoints := tagGroups[tag]
+
+                        builder.WriteString("## ")
+                        builder.WriteString(tag)
+                        builder.WriteString("\n\n")
+
+                        for _, e := range endpoints </span><span class="cov8" title="1">{
+                                builder.WriteString("### ")
+                                builder.WriteString(e.method)
+                                builder.WriteString(" ")
+                                builder.WriteString(e.path)
+                                builder.WriteString("\n\n")
+                                builder.WriteString(e.summary)
+                                builder.WriteString("\n\n")
+                                if e.description != "" &amp;&amp; e.description != e.summary </span><span class="cov8" title="1">{
+                                        builder.WriteString(e.description)
+                                        builder.WriteString("\n\n")
+                                }</span>
+
+                                <span class="cov8" title="1">renderParameters(&amp;builder, e.operation)
+                                renderResponses(&amp;builder, e.operation)</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">return builder.String()</span>
+}
+
+func renderParameters(builder *strings.Builder, op *v3.Operation) <span class="cov8" title="1">{
+        if op == nil || op.Parameters == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">pathParams := []v3.Parameter{}
+        queryParams := []v3.Parameter{}
+        headerParams := []v3.Parameter{}
+
+        for _, param := range op.Parameters </span><span class="cov8" title="1">{
+                if param == nil </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">switch param.In </span>{
+                case "path":<span class="cov8" title="1">
+                        pathParams = append(pathParams, *param)</span>
+                case "query":<span class="cov8" title="1">
+                        queryParams = append(queryParams, *param)</span>
+                case "header":<span class="cov8" title="1">
+                        headerParams = append(headerParams, *param)</span>
+                }
+        }
+
+        <span class="cov8" title="1">renderParamTable(builder, "Path", pathParams)
+        renderParamTable(builder, "Query", queryParams)
+        renderParamTable(builder, "Header", headerParams)</span>
+}
+
+func renderParamTable(builder *strings.Builder, paramType string, params []v3.Parameter) <span class="cov8" title="1">{
+        if len(params) == 0 </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">builder.WriteString("#### ")
+        builder.WriteString(paramType)
+        builder.WriteString(" Parameters\n\n")
+        builder.WriteString("Name | Description | Required | Type\n")
+        builder.WriteString("-----|-------------|----------|-----\n")
+
+        for _, param := range params </span><span class="cov8" title="1">{
+                builder.WriteString(param.Name)
+                builder.WriteString(" | ")
+
+                if param.Description != "" </span><span class="cov8" title="1">{
+                        builder.WriteString(param.Description)
+                }</span>
+                <span class="cov8" title="1">builder.WriteString(" | ")
+
+                if param.Required != nil &amp;&amp; *param.Required </span><span class="cov8" title="1">{
+                        builder.WriteString("true")
+                }</span> else<span class="cov8" title="1"> {
+                        builder.WriteString("false")
+                }</span>
+                <span class="cov8" title="1">builder.WriteString(" | ")
+
+                if param.Schema != nil &amp;&amp; param.Schema.Schema() != nil </span><span class="cov8" title="1">{
+                        schema := param.Schema.Schema()
+                        if len(schema.Type) &gt; 0 </span><span class="cov8" title="1">{
+                                builder.WriteString(schema.Type[0])
+                        }</span>
+                }
+                <span class="cov8" title="1">builder.WriteString("\n")</span>
+        }
+
+        <span class="cov8" title="1">builder.WriteString("\n")</span>
+}
+
+func renderResponses(builder *strings.Builder, op *v3.Operation) <span class="cov8" title="1">{
+        if op == nil || op.Responses == nil || op.Responses.Codes == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">codes := []string{}
+        for pair := op.Responses.Codes.First(); pair != nil; pair = pair.Next() </span><span class="cov8" title="1">{
+                codes = append(codes, pair.Key())
+        }</span>
+        <span class="cov8" title="1">sort.Strings(codes)
+
+        for _, code := range codes </span><span class="cov8" title="1">{
+                resp := op.Responses.Codes.GetOrZero(code)
+
+                builder.WriteString("##### ")
+                builder.WriteString(code)
+                builder.WriteString(" Response\n\n")
+
+                if resp.Description != "" </span><span class="cov8" title="1">{
+                        builder.WriteString(resp.Description)
+                        builder.WriteString("\n\n")
+                }</span>
+        }
+}
+
+func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[string][]endpoint) *DebugInfo <span class="cov8" title="1">{
+        debug := &amp;DebugInfo{
+                ParameterCounts: make(map[string]int),
+                ResponseCounts:  make(map[string]int),
+        }
+
+        if model.Paths != nil &amp;&amp; model.Paths.PathItems != nil </span><span class="cov8" title="1">{
+                debug.ParsedPaths = model.Paths.PathItems.Len()
+        }</span>
+
+        <span class="cov8" title="1">debug.ExtractedOps = len(endpoints)
+
+        tags := make([]string, 0, len(tagGroups))
+        for tag := range tagGroups </span><span class="cov8" title="1">{
+                tags = append(tags, tag)
+        }</span>
+        <span class="cov8" title="1">sort.Strings(tags)
+        debug.TagsFound = tags
+
+        for _, e := range endpoints </span><span class="cov8" title="1">{
+                if len(e.tags) == 0 </span><span class="cov8" title="1">{
+                        debug.UntaggedOps++
+                }</span>
+
+                <span class="cov8" title="1">if e.operation != nil &amp;&amp; e.operation.Parameters != nil </span><span class="cov8" title="1">{
+                        for _, param := range e.operation.Parameters </span><span class="cov8" title="1">{
+                                if param != nil </span><span class="cov8" title="1">{
+                                        debug.ParameterCounts[param.In]++
+                                }</span>
+                        }
+                }
+
+                <span class="cov8" title="1">if e.operation != nil &amp;&amp; e.operation.Responses != nil &amp;&amp; e.operation.Responses.Codes != nil </span><span class="cov8" title="1">{
+                        for pair := e.operation.Responses.Codes.First(); pair != nil; pair = pair.Next() </span><span class="cov8" title="1">{
+                                debug.ResponseCounts[pair.Key()]++
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">return debug</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

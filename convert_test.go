@@ -602,3 +602,320 @@ paths:
 	assert.Equal(t, 1, result.EndpointCount)
 	assert.Equal(t, 2, result.TagCount)
 }
+
+func TestConvertDebugParameterExtraction(t *testing.T) {
+	openapi := []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: X-API-Key
+          in: header
+          required: true
+          schema:
+            type: string
+`)
+
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
+		Title: "Test API",
+		Debug: true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Debug)
+
+	assert.Equal(t, 1, result.Debug.ParameterCounts["path"])
+	assert.Equal(t, 1, result.Debug.ParameterCounts["query"])
+	assert.Equal(t, 1, result.Debug.ParameterCounts["header"])
+}
+
+func TestConvertDebugResponseExtraction(t *testing.T) {
+	openapi := []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Bad request
+    post:
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad request
+`)
+
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
+		Title: "Test API",
+		Debug: true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Debug)
+
+	assert.Equal(t, 1, result.Debug.ResponseCounts["200"])
+	assert.Equal(t, 1, result.Debug.ResponseCounts["201"])
+	assert.Equal(t, 2, result.Debug.ResponseCounts["400"])
+}
+
+func TestConvertDebugTagGrouping(t *testing.T) {
+	openapi := []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      tags:
+        - users
+  /posts:
+    get:
+      tags:
+        - posts
+  /health:
+    get:
+      summary: Health check
+`)
+
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
+		Title: "Test API",
+		Debug: true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Debug)
+
+	assert.Equal(t, 3, result.Debug.ParsedPaths)
+	assert.Equal(t, 3, result.Debug.ExtractedOps)
+	assert.Equal(t, 1, result.Debug.UntaggedOps)
+	assert.Contains(t, result.Debug.TagsFound, "users")
+	assert.Contains(t, result.Debug.TagsFound, "posts")
+	assert.Contains(t, result.Debug.TagsFound, "Default APIs")
+}
+
+func TestConvertIntegrationPetStore(t *testing.T) {
+	openapi := []byte(`openapi: 3.0.0
+info:
+  title: Pet Store API
+  description: A sample API for managing pets
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      summary: List all pets
+      tags:
+        - pets
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of pets to return
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+  /pets/{petId}:
+    get:
+      summary: Get a pet by ID
+      tags:
+        - pets
+      parameters:
+        - name: petId
+          in: path
+          description: ID of pet to return
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+        '404':
+          description: Pet not found
+`)
+
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
+		Title: "Pet Store API",
+		Debug: true,
+	})
+	require.NoError(t, err)
+
+	markdown := string(result.Markdown)
+
+	assert.Contains(t, markdown, "# Pet Store API")
+	assert.Contains(t, markdown, "## Table of Contents")
+	assert.Contains(t, markdown, "## pets")
+
+	assert.Equal(t, 2, result.EndpointCount)
+	assert.Equal(t, 1, result.TagCount)
+
+	require.NotNil(t, result.Debug)
+	assert.Equal(t, 2, result.Debug.ParsedPaths)
+	assert.Equal(t, 2, result.Debug.ExtractedOps)
+	assert.Equal(t, 0, result.Debug.UntaggedOps)
+	assert.Equal(t, 1, result.Debug.ParameterCounts["path"])
+	assert.Equal(t, 1, result.Debug.ParameterCounts["query"])
+}
+
+func TestConvertIntegrationComplexAPI(t *testing.T) {
+	openapi := []byte(`openapi: 3.0.0
+info:
+  title: Complex API
+  description: A comprehensive API with multiple features
+  version: 2.0.0
+paths:
+  /users:
+    get:
+      summary: List all users
+      tags:
+        - users
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of users
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          description: Number of users to skip
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid parameters
+    post:
+      summary: Create a new user
+      tags:
+        - users
+      parameters:
+        - name: X-Request-ID
+          in: header
+          description: Request identifier
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Invalid user data
+  /users/{userId}:
+    get:
+      summary: Get user by ID
+      tags:
+        - users
+      parameters:
+        - name: userId
+          in: path
+          description: User identifier
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+        '404':
+          description: User not found
+    delete:
+      summary: Delete user
+      tags:
+        - users
+        - admin
+      parameters:
+        - name: userId
+          in: path
+          description: User identifier
+          required: true
+          schema:
+            type: string
+        - name: X-Admin-Token
+          in: header
+          description: Admin authorization
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted
+        '403':
+          description: Unauthorized
+        '404':
+          description: User not found
+  /posts:
+    get:
+      summary: List all posts
+      tags:
+        - posts
+      responses:
+        '200':
+          description: Successful response
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+`)
+
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
+		Title:       "Complex API",
+		Description: "A comprehensive API with multiple features",
+		Debug:       true,
+	})
+	require.NoError(t, err)
+
+	markdown := string(result.Markdown)
+
+	assert.Contains(t, markdown, "# Complex API")
+	assert.Contains(t, markdown, "A comprehensive API with multiple features")
+	assert.Contains(t, markdown, "## Table of Contents")
+	assert.Contains(t, markdown, "## users")
+	assert.Contains(t, markdown, "## admin")
+	assert.Contains(t, markdown, "## posts")
+	assert.Contains(t, markdown, "## Default APIs")
+
+	assert.Contains(t, markdown, "### GET /users")
+	assert.Contains(t, markdown, "### POST /users")
+	assert.Contains(t, markdown, "### GET /users/{userId}")
+	assert.Contains(t, markdown, "### DELETE /users/{userId}")
+	assert.Contains(t, markdown, "### GET /posts")
+	assert.Contains(t, markdown, "### GET /health")
+
+	assert.Contains(t, markdown, "#### Path Parameters")
+	assert.Contains(t, markdown, "#### Query Parameters")
+	assert.Contains(t, markdown, "#### Header Parameters")
+
+	assert.Equal(t, 6, result.EndpointCount)
+	assert.Equal(t, 4, result.TagCount)
+
+	require.NotNil(t, result.Debug)
+	assert.Equal(t, 4, result.Debug.ParsedPaths)
+	assert.Equal(t, 6, result.Debug.ExtractedOps)
+	assert.Equal(t, 1, result.Debug.UntaggedOps)
+	assert.Equal(t, 2, result.Debug.ParameterCounts["path"])
+	assert.Equal(t, 2, result.Debug.ParameterCounts["query"])
+	assert.Equal(t, 2, result.Debug.ParameterCounts["header"])
+	assert.Equal(t, 5, result.Debug.ResponseCounts["200"])
+	assert.Equal(t, 2, result.Debug.ResponseCounts["400"])
+	assert.Equal(t, 1, result.Debug.ResponseCounts["201"])
+	assert.Equal(t, 1, result.Debug.ResponseCounts["403"])
+	assert.Equal(t, 2, result.Debug.ResponseCounts["404"])
+}

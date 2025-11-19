@@ -15,12 +15,24 @@ type ConvertResult struct {
 	Markdown      []byte
 	EndpointCount int
 	TagCount      int
+	Debug         *DebugInfo
+}
+
+// DebugInfo provides visibility into internal conversion process for testing
+type DebugInfo struct {
+	ParsedPaths     int
+	ExtractedOps    int
+	TagsFound       []string
+	UntaggedOps     int
+	ParameterCounts map[string]int
+	ResponseCounts  map[string]int
 }
 
 // ConvertOptions configures markdown generation
 type ConvertOptions struct {
 	Title       string
 	Description string
+	Debug       bool
 }
 
 // Convert converts OpenAPI 3.x to markdown API documentation
@@ -59,11 +71,17 @@ func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) {
 	tagGroups := groupByTags(endpoints)
 	markdown := generateMarkdown(opts, endpoints, tagGroups)
 
-	return &ConvertResult{
+	result := &ConvertResult{
 		Markdown:      []byte(markdown),
 		EndpointCount: len(endpoints),
 		TagCount:      len(tagGroups),
-	}, nil
+	}
+
+	if opts.Debug {
+		result.Debug = collectDebugInfo(v3Model.Model, endpoints, tagGroups)
+	}
+
+	return result, nil
 }
 
 type endpoint struct {
@@ -303,4 +321,46 @@ func renderResponses(builder *strings.Builder, op *v3.Operation) {
 			builder.WriteString("\n\n")
 		}
 	}
+}
+
+func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[string][]endpoint) *DebugInfo {
+	debug := &DebugInfo{
+		ParameterCounts: make(map[string]int),
+		ResponseCounts:  make(map[string]int),
+	}
+
+	if model.Paths != nil && model.Paths.PathItems != nil {
+		debug.ParsedPaths = model.Paths.PathItems.Len()
+	}
+
+	debug.ExtractedOps = len(endpoints)
+
+	tags := make([]string, 0, len(tagGroups))
+	for tag := range tagGroups {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	debug.TagsFound = tags
+
+	for _, e := range endpoints {
+		if len(e.tags) == 0 {
+			debug.UntaggedOps++
+		}
+
+		if e.operation != nil && e.operation.Parameters != nil {
+			for _, param := range e.operation.Parameters {
+				if param != nil {
+					debug.ParameterCounts[param.In]++
+				}
+			}
+		}
+
+		if e.operation != nil && e.operation.Responses != nil && e.operation.Responses.Codes != nil {
+			for pair := e.operation.Responses.Codes.First(); pair != nil; pair = pair.Next() {
+				debug.ResponseCounts[pair.Key()]++
+			}
+		}
+	}
+
+	return debug
 }
