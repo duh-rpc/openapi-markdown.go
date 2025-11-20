@@ -469,7 +469,8 @@ func getExampleFromMediaType(mt *v3.MediaType) string {
 	}
 
 	if mt.Examples != nil && mt.Examples.Len() > 0 {
-		for pair := mt.Examples.First(); pair != nil; pair = pair.Next() {
+		pair := mt.Examples.First()
+		if pair != nil {
 			example := pair.Value()
 			if example != nil && example.Value != nil {
 				var value interface{}
@@ -479,7 +480,6 @@ func getExampleFromMediaType(mt *v3.MediaType) string {
 					}
 				}
 			}
-			break
 		}
 	}
 
