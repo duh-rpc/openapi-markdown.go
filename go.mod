@@ -3,6 +3,7 @@ module github.com/duh-rpc/openapi-markdown.go
 go 1.25.4
 
 require (
+	github.com/duh-rpc/openapi-proto.go v0.5.0
 	github.com/pb33f/libopenapi v0.28.2
 	github.com/stretchr/testify v1.11.1
 )

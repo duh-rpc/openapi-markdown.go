@@ -38,6 +38,15 @@ X-Admin-Token | Admin authorization token | true | string
 
 Pet deleted successfully
 
+```json
+{
+   "pet": {
+      "petId": "Z5zQu9MxNm",
+      "success": false
+   }
+}
+```
+
 ##### 403 Response
 
 Unauthorized
@@ -184,6 +193,15 @@ X-Admin-Token | Admin authorization token | true | string
 ##### 200 Response
 
 Pet deleted successfully
+
+```json
+{
+   "pet": {
+      "petId": "Z5zQu9MxNm",
+      "success": false
+   }
+}
+```
 
 ##### 403 Response
 

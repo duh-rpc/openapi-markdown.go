@@ -1,12 +1,15 @@
 package conv
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 
+	proto "github.com/duh-rpc/openapi-proto.go"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
@@ -67,9 +70,17 @@ func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) {
 		return nil, fmt.Errorf("only openapi 3.x is supported")
 	}
 
+	examples, err := generateComponentExamples(openapi)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate component examples: %w", err)
+	}
+
 	endpoints := extractEndpoints(v3Model.Model)
 	tagGroups := groupByTags(endpoints)
-	markdown := generateMarkdown(opts, endpoints, tagGroups)
+	markdown, err := generateMarkdown(opts, endpoints, tagGroups, examples)
+	if err != nil {
+		return nil, err
+	}
 
 	result := &ConvertResult{
 		Markdown:      []byte(markdown),
@@ -153,7 +164,7 @@ func makeAnchor(method, path string) string {
 	return combined
 }
 
-func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[string][]endpoint) string {
+func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[string][]endpoint, examples map[string]json.RawMessage) (string, error) {
 	var builder strings.Builder
 
 	builder.WriteString("# ")
@@ -223,12 +234,14 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 				}
 
 				renderParameters(&builder, e.operation)
-				renderResponses(&builder, e.operation)
+				if err := renderResponses(&builder, e.operation, examples); err != nil {
+					return "", err
+				}
 			}
 		}
 	}
 
-	return builder.String()
+	return builder.String(), nil
 }
 
 func renderParameters(builder *strings.Builder, op *v3.Operation) {
@@ -298,9 +311,9 @@ func renderParamTable(builder *strings.Builder, paramType string, params []v3.Pa
 	builder.WriteString("\n")
 }
 
-func renderResponses(builder *strings.Builder, op *v3.Operation) {
+func renderResponses(builder *strings.Builder, op *v3.Operation, examples map[string]json.RawMessage) error {
 	if op == nil || op.Responses == nil || op.Responses.Codes == nil {
-		return
+		return nil
 	}
 
 	codes := []string{}
@@ -320,7 +333,20 @@ func renderResponses(builder *strings.Builder, op *v3.Operation) {
 			builder.WriteString(resp.Description)
 			builder.WriteString("\n\n")
 		}
+
+		exampleJSON, err := extractResponseExample(resp, examples)
+		if err != nil {
+			return err
+		}
+
+		if exampleJSON != "" {
+			builder.WriteString("```json\n")
+			builder.WriteString(exampleJSON)
+			builder.WriteString("\n```\n\n")
+		}
 	}
+
+	return nil
 }
 
 func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[string][]endpoint) *DebugInfo {
@@ -363,4 +389,134 @@ func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[str
 	}
 
 	return debug
+}
+
+// generateComponentExamples generates JSON examples for all component schemas
+func generateComponentExamples(openapi []byte) (map[string]json.RawMessage, error) {
+	const maxDepth = 5
+	const seed = 42
+
+	result, err := proto.ConvertToExamples(openapi, proto.ExampleOptions{
+		IncludeAll: true,
+		MaxDepth:   maxDepth,
+		Seed:       seed,
+	})
+	if err != nil {
+		return make(map[string]json.RawMessage), nil
+	}
+
+	return result.Examples, nil
+}
+
+// extractSchemaName extracts schema name from $ref (e.g., "#/components/schemas/Pet" -> "Pet")
+func extractSchemaName(ref string) (string, error) {
+	const prefix = "#/components/schemas/"
+	if !strings.HasPrefix(ref, prefix) {
+		return "", fmt.Errorf("invalid schema reference format: %s", ref)
+	}
+
+	name := strings.TrimPrefix(ref, prefix)
+	if name == "" {
+		return "", fmt.Errorf("empty schema name in reference: %s", ref)
+	}
+
+	return name, nil
+}
+
+// getExampleFromSchema generates example from schema using pre-generated examples
+func getExampleFromSchema(schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage) (string, error) {
+	if schemaProxy == nil {
+		return "", nil
+	}
+
+	if !schemaProxy.IsReference() {
+		return "", fmt.Errorf("inline schemas not supported in responses, use $ref")
+	}
+
+	ref := schemaProxy.GetReference()
+	schemaName, err := extractSchemaName(ref)
+	if err != nil {
+		return "", err
+	}
+
+	exampleJSON, found := examples[schemaName]
+	if !found {
+		return "", nil
+	}
+
+	var value interface{}
+	if err := json.Unmarshal(exampleJSON, &value); err != nil {
+		return "", nil
+	}
+
+	formatted, err := json.MarshalIndent(value, "", "   ")
+	if err != nil {
+		return "", nil
+	}
+
+	return string(formatted), nil
+}
+
+// getExampleFromMediaType extracts explicit example from MediaType
+func getExampleFromMediaType(mt *v3.MediaType) string {
+	if mt.Example != nil {
+		var value interface{}
+		if err := mt.Example.Decode(&value); err == nil {
+			if formatted, err := json.MarshalIndent(value, "", "   "); err == nil {
+				return string(formatted)
+			}
+		}
+	}
+
+	if mt.Examples != nil && mt.Examples.Len() > 0 {
+		for pair := mt.Examples.First(); pair != nil; pair = pair.Next() {
+			example := pair.Value()
+			if example != nil && example.Value != nil {
+				var value interface{}
+				if err := example.Value.Decode(&value); err == nil {
+					if formatted, err := json.MarshalIndent(value, "", "   "); err == nil {
+						return string(formatted)
+					}
+				}
+			}
+			break
+		}
+	}
+
+	return ""
+}
+
+// extractResponseExample extracts or generates a JSON example for a response
+func extractResponseExample(resp *v3.Response, examples map[string]json.RawMessage) (string, error) {
+	if resp.Content == nil || resp.Content.Len() == 0 {
+		return "", nil
+	}
+
+	for pair := resp.Content.First(); pair != nil; pair = pair.Next() {
+		mediaType := pair.Key()
+		if mediaType != "application/json" {
+			continue
+		}
+
+		mt := pair.Value()
+		if mt == nil {
+			continue
+		}
+
+		if explicit := getExampleFromMediaType(mt); explicit != "" {
+			return explicit, nil
+		}
+
+		if mt.Schema != nil {
+			generated, err := getExampleFromSchema(mt.Schema, examples)
+			if err != nil {
+				return "", err
+			}
+			if generated != "" {
+				return generated, nil
+			}
+		}
+	}
+
+	return "", nil
 }

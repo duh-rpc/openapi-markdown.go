@@ -939,3 +939,209 @@ func TestConvertCompleteExample(t *testing.T) {
 	assert.Equal(t, 13, result.EndpointCount)
 	assert.Equal(t, 5, result.TagCount)
 }
+
+func TestConvert_ResponseExamplePriority(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		spec     []byte
+		wantJSON string
+	}{
+		{
+			name: "ExplicitExample",
+			spec: []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                id: "123"
+                text: "explicit example"
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+`),
+			wantJSON: `"id": "123"`,
+		},
+		{
+			name: "NamedExamples",
+			spec: []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              examples:
+                example1:
+                  value:
+                    id: "456"
+                    text: "named example"
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+`),
+			wantJSON: `"id": "456"`,
+		},
+		{
+			name: "GeneratedFromRef",
+			spec: []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        text:
+          type: string
+`),
+			wantJSON: `"text":`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert(test.spec, conv.ConvertOptions{Title: "Test API"})
+			require.NoError(t, err)
+			assert.Contains(t, string(result.Markdown), test.wantJSON)
+		})
+	}
+}
+
+func TestConvert_ResponseSchemaErrors(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		spec    []byte
+		wantErr string
+	}{
+		{
+			name: "InlineSchemaNotAllowed",
+			spec: []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+`),
+			wantErr: "inline schemas not supported in responses",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := conv.Convert(test.spec, conv.ConvertOptions{Title: "Test API"})
+			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestConvert_ResponseContentTypes(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		spec         []byte
+		wantContains string
+		wantMissing  string
+	}{
+		{
+			name: "NoContentDescriptionOnly",
+			spec: []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          description: Success
+`),
+			wantContains: "Success",
+			wantMissing:  "```json",
+		},
+		{
+			name: "MultipleMediaTypesOnlyJSON",
+			spec: []byte(`openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+            text/html:
+              schema:
+                type: string
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        text:
+          type: string
+`),
+			wantContains: "```json",
+			wantMissing:  "```html",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert(test.spec, conv.ConvertOptions{Title: "Test API"})
+			require.NoError(t, err)
+			markdown := string(result.Markdown)
+			if test.wantContains != "" {
+				assert.Contains(t, markdown, test.wantContains)
+			}
+			if test.wantMissing != "" {
+				assert.NotContains(t, markdown, test.wantMissing)
+			}
+		})
+	}
+}
