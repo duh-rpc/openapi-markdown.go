@@ -1,6 +1,7 @@
 package conv_test
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -1143,5 +1144,28 @@ components:
 				assert.NotContains(t, markdown, test.wantMissing)
 			}
 		})
+	}
+}
+
+func TestCompleteExampleWithGoldenFile(t *testing.T) {
+	spec, err := os.ReadFile("examples/openapi.yaml")
+	require.NoError(t, err)
+
+	result, err := conv.Convert(spec, conv.ConvertOptions{
+		Title:       "Pet Store API",
+		Description: "A comprehensive API for managing a pet store with users, pets, and orders",
+	})
+	require.NoError(t, err)
+
+	golden, err := os.ReadFile("testdata/golden/petstore-example.md")
+	require.NoError(t, err)
+
+	if !bytes.Equal(result.Markdown, golden) {
+		actualPath := "testdata/golden/petstore-example.actual.md"
+		err := os.WriteFile(actualPath, result.Markdown, 0644)
+		require.NoError(t, err)
+
+		t.Fatalf("Output doesn't match golden file\nActual written to: %s\nRun: diff %s testdata/golden/petstore-example.md",
+			actualPath, actualPath)
 	}
 }
