@@ -51,9 +51,58 @@ Pet deleted successfully
 
 Unauthorized
 
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
+
 ##### 404 Response
 
 Pet not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
+
+### GET /v3/metrics
+
+Get API metrics
+
+Returns usage metrics and statistics
+
+#### Header Parameters
+
+Name | Description | Required | Type
+-----|-------------|----------|-----
+X-Admin-Token | Admin authorization token | true | string
+
+##### 200 Response
+
+Metrics data
+
+```json
+{
+   "requestsPerSecond": 0,
+   "requestsTotal": 0,
+   "uptime": 0
+}
+```
+
+##### 403 Response
+
+Unauthorized
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ## orders
 
@@ -79,9 +128,31 @@ status | Filter by order status | false | string
 
 Successful response
 
+```json
+{
+   "cursor": "iehJer4vjD",
+   "orders": [
+      {
+         "id": "vzERQgJPPe",
+         "petId": "QDX5B43Vis",
+         "quantity": 0,
+         "status": "placed",
+         "userId": "MmGDTQm9Oy"
+      }
+   ]
+}
+```
+
 ##### 404 Response
 
 User not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### GET /v3/orders
 
@@ -100,6 +171,21 @@ first | Number of orders to return (cursor-based pagination) | false | integer
 
 Successful response
 
+```json
+{
+   "cursor": "iehJer4vjD",
+   "orders": [
+      {
+         "id": "vzERQgJPPe",
+         "petId": "QDX5B43Vis",
+         "quantity": 0,
+         "status": "placed",
+         "userId": "MmGDTQm9Oy"
+      }
+   ]
+}
+```
+
 ### POST /v3/orders
 
 Create a new order
@@ -110,9 +196,23 @@ Place a new order for pets
 
 Order created successfully
 
+```json
+{
+   "id": "tNb6pTA5oo",
+   "message": "kqNDD63C2T"
+}
+```
+
 ##### 400 Response
 
 Invalid order data
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### GET /v3/orders/{orderId}
 
@@ -130,9 +230,26 @@ orderId | Order identifier | true | string
 
 Successful response
 
+```json
+{
+   "id": "3tnghwev4q",
+   "petId": "KloHxMixtq",
+   "quantity": 0,
+   "status": "placed",
+   "userId": "MlFi3bO9SE"
+}
+```
+
 ##### 404 Response
 
 Order not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ## pets
 
@@ -154,9 +271,33 @@ tag | Filter by tag | false | string
 
 Successful response with pet list
 
+```json
+{
+   "cursor": "eyJpZCI6InBldC0xMjMifQ==",
+   "pets": [
+      {
+         "id": "pet-123",
+         "name": "Fluffy",
+         "status": "available",
+         "tags": [
+            "cat",
+            "friendly"
+         ]
+      }
+   ]
+}
+```
+
 ##### 400 Response
 
 Invalid request parameters
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### POST /v3/pets
 
@@ -174,9 +315,23 @@ X-Request-ID | Unique request identifier | true | string
 
 Pet created successfully
 
+```json
+{
+   "id": "q1Xh3S7gYe",
+   "message": "kwHUMGhWzG"
+}
+```
+
 ##### 400 Response
 
 Invalid pet data
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### POST /v3/pets.delete
 
@@ -207,9 +362,23 @@ Pet deleted successfully
 
 Unauthorized
 
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
+
 ##### 404 Response
 
 Pet not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### GET /v3/pets/{petId}
 
@@ -227,9 +396,27 @@ petId | ID of pet to return | true | string
 
 Successful response
 
+```json
+{
+   "id": "sLiFD4MY7O",
+   "name": "3gDk8Bg7W9",
+   "status": "available",
+   "tags": [
+      "LLxq2zGNO6"
+   ]
+}
+```
+
 ##### 404 Response
 
 Pet not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ## users
 
@@ -249,6 +436,19 @@ active | Filter by active status | false | boolean
 
 Successful response
 
+```json
+{
+   "users": [
+      {
+         "active": true,
+         "email": "user@example.com",
+         "id": "pld7aFPfYJ",
+         "username": "K6SV75azeo"
+      }
+   ]
+}
+```
+
 ### POST /v3/users
 
 Create a new user
@@ -259,9 +459,23 @@ Register a new user account
 
 User created successfully
 
+```json
+{
+   "id": "vf8sRN3aXc",
+   "message": "u3ujt5jSrl"
+}
+```
+
 ##### 400 Response
 
 Invalid user data
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### GET /v3/users/{userId}
 
@@ -279,9 +493,25 @@ userId | User identifier | true | string
 
 Successful response
 
+```json
+{
+   "active": true,
+   "email": "user@example.com",
+   "id": "0L8r30xvTn",
+   "username": "j31WE1Wf9y"
+}
+```
+
 ##### 404 Response
 
 User not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ### GET /v3/users/{userId}/orders
 
@@ -305,9 +535,31 @@ status | Filter by order status | false | string
 
 Successful response
 
+```json
+{
+   "cursor": "iehJer4vjD",
+   "orders": [
+      {
+         "id": "vzERQgJPPe",
+         "petId": "QDX5B43Vis",
+         "quantity": 0,
+         "status": "placed",
+         "userId": "MmGDTQm9Oy"
+      }
+   ]
+}
+```
+
 ##### 404 Response
 
 User not found
+
+```json
+{
+   "code": "cqPIsFr5Zb",
+   "error": "qDuuLEkoRU"
+}
+```
 
 ## Default APIs
 
@@ -321,23 +573,10 @@ Returns the health status of the API
 
 Service is healthy
 
-### GET /v3/metrics
-
-Get API metrics
-
-Returns usage metrics and statistics
-
-#### Header Parameters
-
-Name | Description | Required | Type
------|-------------|----------|-----
-X-Admin-Token | Admin authorization token | true | string
-
-##### 200 Response
-
-Metrics data
-
-##### 403 Response
-
-Unauthorized
+```json
+{
+   "status": "healthy",
+   "timestamp": "2024-01-15T10:30:00Z"
+}
+```
 

@@ -33,8 +33,23 @@ paths:
       responses:
         '200':
           description: Successful response with pet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetList'
+              example:
+                pets:
+                  - id: "pet-123"
+                    name: "Fluffy"
+                    status: "available"
+                    tags: ["cat", "friendly"]
+                cursor: "eyJpZCI6InBldC0xMjMifQ=="
         '400':
           description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     post:
       summary: Create a new pet
@@ -51,8 +66,16 @@ paths:
       responses:
         '201':
           description: Pet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetCreated'
         '400':
           description: Invalid pet data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/pets.delete:
     post:
@@ -83,8 +106,16 @@ paths:
                 $ref: '#/components/schemas/PetDeleteResponse'
         '404':
           description: Pet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/pets/{petId}:
     get:
@@ -102,8 +133,16 @@ paths:
       responses:
         '200':
           description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
         '404':
           description: Pet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/users:
     get:
@@ -121,6 +160,10 @@ paths:
       responses:
         '200':
           description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
 
     post:
       summary: Create a new user
@@ -130,8 +173,16 @@ paths:
       responses:
         '201':
           description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreated'
         '400':
           description: Invalid user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/users/{userId}:
     get:
@@ -149,8 +200,16 @@ paths:
       responses:
         '200':
           description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
         '404':
           description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/users/{userId}/orders:
     get:
@@ -175,8 +234,16 @@ paths:
       responses:
         '200':
           description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
         '404':
           description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/orders:
     get:
@@ -200,6 +267,10 @@ paths:
       responses:
         '200':
           description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
 
     post:
       summary: Create a new order
@@ -209,8 +280,16 @@ paths:
       responses:
         '201':
           description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCreated'
         '400':
           description: Invalid order data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/orders/{orderId}:
     get:
@@ -228,8 +307,16 @@ paths:
       responses:
         '200':
           description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
         '404':
           description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v3/health:
     get:
@@ -238,11 +325,17 @@ paths:
       responses:
         '200':
           description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
 
   /v3/metrics:
     get:
       summary: Get API metrics
       description: Returns usage metrics and statistics
+      tags:
+        - admin
       parameters:
         - name: X-Admin-Token
           in: header
@@ -253,8 +346,16 @@ paths:
       responses:
         '200':
           description: Metrics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metrics'
         '403':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -278,3 +379,126 @@ components:
               description: ID of the deleted pet
             success:
               type: boolean
+
+    PetList:
+      type: object
+      properties:
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        cursor:
+          type: string
+
+    Pet:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [available, pending, sold]
+        tags:
+          type: array
+          items:
+            type: string
+
+    PetCreated:
+      type: object
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+
+    UserList:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        active:
+          type: boolean
+
+    UserCreated:
+      type: object
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+
+    OrderList:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        cursor:
+          type: string
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        petId:
+          type: string
+        status:
+          type: string
+          enum: [placed, approved, delivered]
+        quantity:
+          type: integer
+
+    OrderCreated:
+      type: object
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        timestamp:
+          type: string
+          format: date-time
+
+    Metrics:
+      type: object
+      properties:
+        requestsTotal:
+          type: integer
+        requestsPerSecond:
+          type: number
+        uptime:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
