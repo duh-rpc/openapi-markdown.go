@@ -2,10 +2,84 @@
 
 A Go library that converts OpenAPI 3.x specifications to comprehensive markdown API documentation.
 
+## Features
+
+- Converts OpenAPI 3.x specifications to clean, readable Markdown
+- Generates Table of Contents with anchor links
+- Organizes endpoints by tags
+- Renders parameter tables (path, query, header)
+- **Generates JSON response examples from schemas**
+- Supports explicit examples and schema-based generation
+- Validates that response schemas use $ref (no inline schemas)
+
 ## Installation
 
 ```bash
 go get github.com/duh-rpc/openapi-markdown.go
+```
+
+## Response Examples
+
+The converter automatically generates JSON examples for API responses using three priority levels:
+
+1. **Explicit examples**: Uses `example` field from response media type
+2. **Named examples**: Uses first entry from `examples` collection
+3. **Schema-based**: Generates from $ref schema using openapi-proto.go library
+
+**Important**: Response schemas must use `$ref` to reference schemas in `components/schemas`. Inline schemas in responses are not supported and will cause an error.
+
+### Example OpenAPI Spec
+
+```yaml
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: List of pets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetList'  # Must use $ref
+              example:  # Optional explicit example
+                pets:
+                  - id: "123"
+                    name: "Fluffy"
+components:
+  schemas:
+    PetList:
+      type: object
+      properties:
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+    Pet:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+```
+
+### Generated Markdown
+
+```markdown
+##### 200 Response
+
+List of pets
+
+\`\`\`json
+{
+   "pets": [
+      {
+         "id": "123",
+         "name": "Fluffy"
+      }
+   ]
+}
+\`\`\`
 ```
 
 ## Usage
@@ -58,12 +132,21 @@ fmt.Printf("Parsed %d paths\n", result.Debug.ParsedPaths)
 fmt.Printf("Extracted %d operations\n", result.Debug.ExtractedOps)
 ```
 
+## Requirements
+
+- Go 1.25.4 or later
+- Dependencies:
+  - github.com/pb33f/libopenapi v0.28.2 (OpenAPI parsing)
+  - github.com/duh-rpc/openapi-proto.go v0.5.0 (Example generation)
+  - github.com/stretchr/testify v1.11.1 (Testing)
+
 ## Complete Example
 
 A comprehensive example demonstrating all converter features is available in the `examples/` directory:
 
 - `examples/openapi.yaml` - Complete OpenAPI specification with multiple tags, parameters, and responses
 - `examples/example.md` - Expected markdown output demonstrating all features
+- `examples/README.md` - Detailed documentation about the example spec
 
 The example demonstrates:
 - Multiple tags (pets, users, orders, admin)
@@ -72,6 +155,8 @@ The example demonstrates:
 - All parameter types: path, query, header
 - All parameter data types: string, integer, boolean
 - Multiple response codes (200, 201, 400, 403, 404)
+- **JSON response examples with explicit and generated examples**
+- **Response schemas using $ref (required pattern)**
 - Rich descriptions and summaries
 
 ### Regenerating Example Output
