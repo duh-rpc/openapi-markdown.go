@@ -51,8 +51,8 @@ Unauthorized
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -62,8 +62,8 @@ Pet not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -83,9 +83,9 @@ Metrics data
 
 ```json
 {
-   "requestsPerSecond": 0,
-   "requestsTotal": 0,
-   "uptime": 0
+   "requestsPerSecond": 19.31071700388466,
+   "requestsTotal": 49,
+   "uptime": 54
 }
 ```
 
@@ -95,8 +95,8 @@ Unauthorized
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -124,14 +124,14 @@ Successful response
 
 ```json
 {
-   "cursor": "iehJer4vjD",
+   "cursor": "dNLyvxI2qwpXy1MzNj",
    "orders": [
       {
-         "id": "vzERQgJPPe",
-         "petId": "QDX5B43Vis",
-         "quantity": 0,
+         "id": "u3ujt5jSrl",
+         "petId": "MmGDTQm9Oy",
+         "quantity": 33,
          "status": "placed",
-         "userId": "MmGDTQm9Oy"
+         "userId": "vzERQgJPPe"
       }
    ]
 }
@@ -143,8 +143,8 @@ User not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -165,14 +165,14 @@ Successful response
 
 ```json
 {
-   "cursor": "iehJer4vjD",
+   "cursor": "dNLyvxI2qwpXy1MzNj",
    "orders": [
       {
-         "id": "vzERQgJPPe",
-         "petId": "QDX5B43Vis",
-         "quantity": 0,
+         "id": "u3ujt5jSrl",
+         "petId": "MmGDTQm9Oy",
+         "quantity": 33,
          "status": "placed",
-         "userId": "MmGDTQm9Oy"
+         "userId": "vzERQgJPPe"
       }
    ]
 }
@@ -188,8 +188,8 @@ Order created successfully
 
 ```json
 {
-   "id": "tNb6pTA5oo",
-   "message": "kqNDD63C2T"
+   "id": "Nb6pTA5ook",
+   "message": "This is a message"
 }
 ```
 
@@ -199,8 +199,8 @@ Invalid order data
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -222,7 +222,7 @@ Successful response
 {
    "id": "3tnghwev4q",
    "petId": "KloHxMixtq",
-   "quantity": 0,
+   "quantity": 18,
    "status": "placed",
    "userId": "MlFi3bO9SE"
 }
@@ -234,8 +234,8 @@ Order not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -280,8 +280,8 @@ Invalid request parameters
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -301,8 +301,8 @@ Pet created successfully
 
 ```json
 {
-   "id": "q1Xh3S7gYe",
-   "message": "kwHUMGhWzG"
+   "id": "kwHUMGhWzG",
+   "message": "This is a message"
 }
 ```
 
@@ -312,8 +312,8 @@ Invalid pet data
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -346,8 +346,8 @@ Unauthorized
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -357,8 +357,8 @@ Pet not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -378,11 +378,11 @@ Successful response
 
 ```json
 {
-   "id": "sLiFD4MY7O",
-   "name": "3gDk8Bg7W9",
+   "id": "3gDk8Bg7W9",
+   "name": "LLxq2zGNO6",
    "status": "available",
    "tags": [
-      "LLxq2zGNO6"
+      "q1Xh3S7gYe"
    ]
 }
 ```
@@ -393,8 +393,8 @@ Pet not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -438,7 +438,7 @@ User created successfully
 ```json
 {
    "id": "vf8sRN3aXc",
-   "message": "u3ujt5jSrl"
+   "message": "This is a message"
 }
 ```
 
@@ -448,8 +448,8 @@ Invalid user data
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -482,8 +482,8 @@ User not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 
@@ -509,14 +509,14 @@ Successful response
 
 ```json
 {
-   "cursor": "iehJer4vjD",
+   "cursor": "dNLyvxI2qwpXy1MzNj",
    "orders": [
       {
-         "id": "vzERQgJPPe",
-         "petId": "QDX5B43Vis",
-         "quantity": 0,
+         "id": "u3ujt5jSrl",
+         "petId": "MmGDTQm9Oy",
+         "quantity": 33,
          "status": "placed",
-         "userId": "MmGDTQm9Oy"
+         "userId": "vzERQgJPPe"
       }
    ]
 }
@@ -528,8 +528,8 @@ User not found
 
 ```json
 {
-   "code": 0,
-   "error": "qDuuLEkoRU"
+   "code": 6,
+   "error": "An error occurred"
 }
 ```
 

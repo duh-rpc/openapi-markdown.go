@@ -29,7 +29,7 @@ The converter automatically generates JSON examples for API responses using thre
 
 1. **Explicit examples**: Uses `example` field from response media type
 2. **Named examples**: Uses first entry from `examples` collection
-3. **Schema-based**: Generates from $ref schema using openapi-proto.go library
+3. **Schema-based**: Generates from $ref schema using openapi-schema.go library
 
 **Important**: Response schemas must use `$ref` to reference schemas in `components/schemas`. Inline schemas in responses are not supported and will cause an error.
 
@@ -142,7 +142,7 @@ fmt.Printf("Extracted %d operations\n", result.Debug.ExtractedOps)
 - Go 1.25.4 or later
 - Dependencies:
   - github.com/pb33f/libopenapi v0.28.2 (OpenAPI parsing)
-  - github.com/duh-rpc/openapi-proto.go v0.5.0 (Example generation)
+  - github.com/duh-rpc/openapi-schema.go v0.7.0 (Example generation)
   - github.com/stretchr/testify v1.11.1 (Testing)
 
 ## Complete Example

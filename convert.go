@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	proto "github.com/duh-rpc/openapi-proto.go"
+	proto "github.com/duh-rpc/openapi-schema.go"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
