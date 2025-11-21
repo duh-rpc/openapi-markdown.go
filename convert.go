@@ -3,6 +3,7 @@ package conv
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strings"
@@ -226,11 +227,15 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 				builder.WriteString(" ")
 				builder.WriteString(e.path)
 				builder.WriteString("\n\n")
-				builder.WriteString(e.summary)
-				builder.WriteString("\n\n")
-				if e.description != "" && e.description != e.summary {
+
+				if e.description != "" {
 					builder.WriteString(e.description)
 					builder.WriteString("\n\n")
+				} else if e.summary != "" {
+					builder.WriteString(e.summary)
+					builder.WriteString("\n\n")
+				} else {
+					log.Printf("Warning: No description or summary for %s %s", e.method, e.path)
 				}
 
 				renderParameters(&builder, e.operation)

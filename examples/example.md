@@ -24,8 +24,6 @@ GET [/v3/metrics](#getv3metrics) | Get API metrics
 
 ### POST /v3/pets.delete
 
-Delete a pet
-
 Removes a pet from the store inventory
 
 #### Header Parameters
@@ -71,8 +69,6 @@ Pet not found
 
 ### GET /v3/metrics
 
-Get API metrics
-
 Returns usage metrics and statistics
 
 #### Header Parameters
@@ -107,8 +103,6 @@ Unauthorized
 ## orders
 
 ### GET /v3/users/{userId}/orders
-
-Get user orders
 
 Returns all orders placed by a specific user
 
@@ -156,8 +150,6 @@ User not found
 
 ### GET /v3/orders
 
-List all orders
-
 Returns a list of all orders in the system
 
 #### Query Parameters
@@ -188,8 +180,6 @@ Successful response
 
 ### POST /v3/orders
 
-Create a new order
-
 Place a new order for pets
 
 ##### 201 Response
@@ -215,8 +205,6 @@ Invalid order data
 ```
 
 ### GET /v3/orders/{orderId}
-
-Get order by ID
 
 Returns detailed order information
 
@@ -254,8 +242,6 @@ Order not found
 ## pets
 
 ### GET /v3/pets
-
-List all pets
 
 Returns a paginated list of all pets in the store
 
@@ -301,8 +287,6 @@ Invalid request parameters
 
 ### POST /v3/pets
 
-Create a new pet
-
 Adds a new pet to the store inventory
 
 #### Header Parameters
@@ -334,8 +318,6 @@ Invalid pet data
 ```
 
 ### POST /v3/pets.delete
-
-Delete a pet
 
 Removes a pet from the store inventory
 
@@ -382,8 +364,6 @@ Pet not found
 
 ### GET /v3/pets/{petId}
 
-Get a pet by ID
-
 Returns detailed information about a specific pet
 
 #### Path Parameters
@@ -422,8 +402,6 @@ Pet not found
 
 ### GET /v3/users
 
-List all users
-
 Returns a list of registered users
 
 #### Query Parameters
@@ -451,8 +429,6 @@ Successful response
 
 ### POST /v3/users
 
-Create a new user
-
 Register a new user account
 
 ##### 201 Response
@@ -478,8 +454,6 @@ Invalid user data
 ```
 
 ### GET /v3/users/{userId}
-
-Get user by ID
 
 Returns detailed user information
 
@@ -514,8 +488,6 @@ User not found
 ```
 
 ### GET /v3/users/{userId}/orders
-
-Get user orders
 
 Returns all orders placed by a specific user
 
@@ -564,8 +536,6 @@ User not found
 ## Default APIs
 
 ### GET /v3/health
-
-Health check endpoint
 
 Returns the health status of the API
 
