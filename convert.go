@@ -214,15 +214,40 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 			tags = append(tags, "Default APIs")
 		}
 
-		for _, tag := range tags {
-			endpoints := tagGroups[tag]
+		if len(tags) > 1 {
+			for _, tag := range tags {
+				endpoints := tagGroups[tag]
 
-			builder.WriteString("## ")
-			builder.WriteString(tag)
-			builder.WriteString("\n\n")
+				builder.WriteString("## ")
+				builder.WriteString(tag)
+				builder.WriteString("\n\n")
 
+				for _, e := range endpoints {
+					builder.WriteString("### ")
+					builder.WriteString(e.method)
+					builder.WriteString(" ")
+					builder.WriteString(e.path)
+					builder.WriteString("\n\n")
+
+					if e.description != "" {
+						builder.WriteString(e.description)
+						builder.WriteString("\n\n")
+					} else if e.summary != "" {
+						builder.WriteString(e.summary)
+						builder.WriteString("\n\n")
+					} else {
+						log.Printf("Warning: No description or summary for %s %s", e.method, e.path)
+					}
+
+					renderParameters(&builder, e.operation)
+					if err := renderResponses(&builder, e.operation, examples); err != nil {
+						return "", err
+					}
+				}
+			}
+		} else {
 			for _, e := range endpoints {
-				builder.WriteString("### ")
+				builder.WriteString("## ")
 				builder.WriteString(e.method)
 				builder.WriteString(" ")
 				builder.WriteString(e.path)
