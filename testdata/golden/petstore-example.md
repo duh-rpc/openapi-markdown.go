@@ -53,7 +53,7 @@ Unauthorized
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -64,7 +64,7 @@ Pet not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -99,7 +99,7 @@ Unauthorized
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -149,7 +149,7 @@ User not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -209,7 +209,7 @@ Invalid order data
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -246,7 +246,7 @@ Order not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -294,7 +294,7 @@ Invalid request parameters
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -328,7 +328,7 @@ Invalid pet data
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -364,7 +364,7 @@ Unauthorized
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -375,7 +375,7 @@ Pet not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -413,7 +413,7 @@ Pet not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -472,7 +472,7 @@ Invalid user data
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -508,7 +508,7 @@ User not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
@@ -556,7 +556,7 @@ User not found
 
 ```json
 {
-   "code": "cqPIsFr5Zb",
+   "code": 0,
    "error": "qDuuLEkoRU"
 }
 ```
