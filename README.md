@@ -2,6 +2,11 @@
 
 A Go library that converts OpenAPI 3.x specifications to comprehensive markdown API documentation.
 
+[![Go Version](https://img.shields.io/github/go-mod/go-version/duh-rpc/openapi-markdown.go)](https://golang.org/dl/)
+[![CI Status](https://github.com/duh-rpc/openapi-markdown.go/workflows/CI/badge.svg)](https://github.com/duh-rpc/openapi-markdown.go/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Report Card](https://goreportcard.com/badge/github.com/duh-rpc/openapi-markdown.go)](https://goreportcard.com/report/github.com/duh-rpc/openapi-markdown.go)
+
 ## Features
 
 - Converts OpenAPI 3.x specifications to clean, readable Markdown
