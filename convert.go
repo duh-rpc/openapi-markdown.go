@@ -632,70 +632,65 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 
 	builder.WriteString("#### Field Definitions\n\n")
 
-	requiredFields := make(map[string]bool)
-	if schema.Required != nil {
-		for _, req := range schema.Required {
-			requiredFields[req] = true
-		}
+	const maxDepth = 10
+	visited := make(map[string]int)
+
+	fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, visited, maxDepth)
+	if err != nil {
+		return err
 	}
 
-	for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
-		fieldName := pair.Key()
-		propSchema := pair.Value()
-
-		if propSchema == nil || propSchema.Schema() == nil {
-			continue
-		}
-
-		prop := propSchema.Schema()
-
+	// Render top-level fields
+	for _, field := range fields {
 		builder.WriteString("**")
-		builder.WriteString(fieldName)
+		builder.WriteString(field.name)
 		builder.WriteString("**")
 
-		typeStr := ""
-		if len(prop.Type) > 0 {
-			typeStr = prop.Type[0]
-		}
-
-		if typeStr == "array" && prop.Items != nil && prop.Items.IsA() {
-			itemSchema := prop.Items.A.Schema()
-			if itemSchema != nil && len(itemSchema.Type) > 0 {
-				typeStr = itemSchema.Type[0] + " array"
-			}
-		}
-
-		if typeStr != "" {
+		if field.typeStr != "" {
 			builder.WriteString(" (")
-			builder.WriteString(typeStr)
-			if requiredFields[fieldName] {
+
+			if field.isArray && !field.isObject {
+				builder.WriteString(field.typeStr)
+				builder.WriteString(" array")
+			} else if field.isArray && field.isObject {
+				builder.WriteString("array of objects")
+			} else if field.isObject {
+				builder.WriteString("object")
+			} else {
+				builder.WriteString(field.typeStr)
+			}
+
+			if field.required {
 				builder.WriteString(", required")
 			}
 			builder.WriteString(")")
 		}
 
-		builder.WriteString("\n")
+		if field.description != "" {
+			builder.WriteString("\n- ")
+			builder.WriteString(field.description)
 
-		if prop.Description != "" {
-			builder.WriteString("- ")
-			builder.WriteString(prop.Description)
-
-			if prop.Enum != nil && len(prop.Enum) > 0 {
+			if field.enum != nil && len(field.enum) > 0 {
 				builder.WriteString(". Enums: ")
-				for i, enumVal := range prop.Enum {
+				for i, enumVal := range field.enum {
 					if i > 0 {
 						builder.WriteString(", ")
 					}
 					builder.WriteString("`")
-					builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+					builder.WriteString(fmt.Sprintf("%v", enumVal))
 					builder.WriteString("`")
 				}
 			}
-
-			builder.WriteString("\n")
 		}
 
-		builder.WriteString("\n")
+		builder.WriteString("\n\n")
+	}
+
+	// Render nested schema definitions
+	for _, nestedDef := range nestedDefs {
+		if err := renderSchemaDefinition(builder, nestedDef); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -738,5 +733,205 @@ func renderRequestBody(builder *strings.Builder, op *v3.Operation, examples map[
 		}
 	}
 
+	return nil
+}
+
+// extractSchemaFields recursively extracts field information from schema
+func extractSchemaFields(schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage, visited map[string]int, maxDepth int) ([]schemaField, []schemaDefinition, error) {
+	if schemaProxy == nil {
+		return nil, nil, nil
+	}
+
+	if !schemaProxy.IsReference() {
+		return nil, nil, nil
+	}
+
+	ref := schemaProxy.GetReference()
+	schemaName, err := extractSchemaName(ref)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check recursion depth
+	if visited[schemaName] > 1 {
+		return nil, nil, nil
+	}
+
+	// Check max depth
+	depth := 0
+	for _, v := range visited {
+		if v > depth {
+			depth = v
+		}
+	}
+	if depth >= maxDepth {
+		return nil, nil, nil
+	}
+
+	schema := schemaProxy.Schema()
+	if schema == nil {
+		return nil, nil, nil
+	}
+
+	if schema.Properties == nil || schema.Properties.Len() == 0 {
+		return nil, nil, nil
+	}
+
+	visited[schemaName]++
+	defer func() { visited[schemaName]-- }()
+
+	var fields []schemaField
+	var nestedDefs []schemaDefinition
+
+	requiredFields := make(map[string]bool)
+	if schema.Required != nil {
+		for _, req := range schema.Required {
+			requiredFields[req] = true
+		}
+	}
+
+	for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+		fieldName := pair.Key()
+		propSchema := pair.Value()
+
+		if propSchema == nil || propSchema.Schema() == nil {
+			continue
+		}
+
+		prop := propSchema.Schema()
+
+		field := schemaField{
+			name:        fieldName,
+			required:    requiredFields[fieldName],
+			description: prop.Description,
+		}
+
+		if prop.Enum != nil && len(prop.Enum) > 0 {
+			for _, enumVal := range prop.Enum {
+				field.enum = append(field.enum, enumVal.Value)
+			}
+		}
+
+		if len(prop.Type) > 0 {
+			field.typeStr = prop.Type[0]
+
+			if prop.Type[0] == "array" && prop.Items != nil && prop.Items.IsA() {
+				field.isArray = true
+				itemSchema := prop.Items.A.Schema()
+				if itemSchema != nil {
+					if len(itemSchema.Type) > 0 {
+						field.typeStr = itemSchema.Type[0]
+					}
+
+					// If array items are objects with a reference, handle recursively
+					if prop.Items.A.IsReference() {
+						itemRef := prop.Items.A.GetReference()
+						itemSchemaName, err := extractSchemaName(itemRef)
+						if err == nil {
+							field.nestedSchemaRef = itemSchemaName
+							field.isObject = true
+
+							// Recursively extract nested schema
+							nestedFields, nestedNested, err := extractSchemaFields(prop.Items.A, examples, visited, maxDepth)
+							if err != nil {
+								return nil, nil, err
+							}
+
+							if len(nestedFields) > 0 {
+								nestedDef := schemaDefinition{
+									name:   itemSchemaName,
+									fields: nestedFields,
+								}
+								nestedDefs = append(nestedDefs, nestedDef)
+								nestedDefs = append(nestedDefs, nestedNested...)
+							}
+						}
+					}
+				}
+			} else if prop.Type[0] == "object" {
+				field.isObject = true
+
+				// Check if this is a reference to another schema
+				if propSchema.IsReference() {
+					propRef := propSchema.GetReference()
+					nestedSchemaName, err := extractSchemaName(propRef)
+					if err == nil {
+						field.nestedSchemaRef = nestedSchemaName
+
+						// Recursively extract nested schema
+						nestedFields, nestedNested, err := extractSchemaFields(propSchema, examples, visited, maxDepth)
+						if err != nil {
+							return nil, nil, err
+						}
+
+						if len(nestedFields) > 0 {
+							nestedDef := schemaDefinition{
+								name:   nestedSchemaName,
+								fields: nestedFields,
+							}
+							nestedDefs = append(nestedDefs, nestedDef)
+							nestedDefs = append(nestedDefs, nestedNested...)
+						}
+					}
+				}
+			}
+		}
+
+		fields = append(fields, field)
+	}
+
+	return fields, nestedDefs, nil
+}
+
+// renderSchemaDefinition renders a single schema definition section
+func renderSchemaDefinition(builder *strings.Builder, def schemaDefinition) error {
+	builder.WriteString("**")
+	builder.WriteString(def.name)
+	builder.WriteString("**\n")
+
+	for _, field := range def.fields {
+		builder.WriteString("- `")
+		builder.WriteString(field.name)
+		builder.WriteString("`")
+
+		if field.typeStr != "" {
+			builder.WriteString(" (")
+
+			if field.isArray && !field.isObject {
+				builder.WriteString(field.typeStr)
+				builder.WriteString(" array")
+			} else if field.isArray && field.isObject {
+				builder.WriteString("array of objects")
+			} else {
+				builder.WriteString(field.typeStr)
+			}
+
+			if field.required {
+				builder.WriteString(", required")
+			}
+			builder.WriteString(")")
+		}
+
+		if field.description != "" {
+			builder.WriteString(": ")
+			builder.WriteString(field.description)
+
+			if field.enum != nil && len(field.enum) > 0 {
+				builder.WriteString(". Enums: ")
+				for i, enumVal := range field.enum {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString("`")
+					builder.WriteString(fmt.Sprintf("%v", enumVal))
+					builder.WriteString("`")
+				}
+			}
+		}
+
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("\n")
 	return nil
 }

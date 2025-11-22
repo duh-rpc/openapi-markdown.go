@@ -1656,3 +1656,387 @@ components:
 		})
 	}
 }
+
+func TestConvertFieldDefinitionsNested(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "nested object creates separate definition section",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /resource:
+    post:
+      summary: Create resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Resource'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    Resource:
+      type: object
+      required:
+        - name
+        - metadata
+      properties:
+        name:
+          type: string
+          description: Resource name
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+    Metadata:
+      type: object
+      required:
+        - created
+      properties:
+        created:
+          type: string
+          description: Creation timestamp
+        tags:
+          type: array
+          items:
+            type: string
+          description: Resource tags`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"**name** (string, required)",
+				"- Resource name",
+				"**metadata** (object, required)",
+				"**Metadata**",
+				"- `created` (string, required): Creation timestamp",
+				"- `tags` (string array): Resource tags",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertFieldDefinitionsDeeplyNested(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "deeply nested objects (3 levels)",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /resource:
+    post:
+      summary: Create resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Level1'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    Level1:
+      type: object
+      properties:
+        name:
+          type: string
+        level2:
+          $ref: '#/components/schemas/Level2'
+    Level2:
+      type: object
+      properties:
+        value:
+          type: string
+        level3:
+          $ref: '#/components/schemas/Level3'
+    Level3:
+      type: object
+      properties:
+        deep:
+          type: string
+          description: Deeply nested value`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**Level2**",
+				"- `value` (string)",
+				"- `level3` (object)",
+				"**Level3**",
+				"- `deep` (string): Deeply nested value",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertFieldDefinitionsRecursive(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "recursive schema capped at depth 1",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /tree:
+    post:
+      summary: Create tree node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TreeNode'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    TreeNode:
+      type: object
+      properties:
+        value:
+          type: string
+          description: Node value
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeNode'
+          description: Child nodes`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**value** (string)",
+				"- Node value",
+				"**children** (array of objects)",
+				"- Child nodes",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertFieldDefinitionsArrayOfObjects(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "array of objects with nested schema",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    post:
+      summary: Create items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemList'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    ItemList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+          description: List of items
+    Item:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: Item ID
+        name:
+          type: string
+          description: Item name`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**items** (array of objects)",
+				"- List of items",
+				"**Item**",
+				"- `id` (string, required): Item ID",
+				"- `name` (string, required): Item name",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertFieldDefinitionsMaxDepth(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "maximum depth limit enforced",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deep:
+    post:
+      summary: Create deep structure
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/L1'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    L1:
+      type: object
+      properties:
+        l2:
+          $ref: '#/components/schemas/L2'
+    L2:
+      type: object
+      properties:
+        l3:
+          $ref: '#/components/schemas/L3'
+    L3:
+      type: object
+      properties:
+        l4:
+          $ref: '#/components/schemas/L4'
+    L4:
+      type: object
+      properties:
+        l5:
+          $ref: '#/components/schemas/L5'
+    L5:
+      type: object
+      properties:
+        l6:
+          $ref: '#/components/schemas/L6'
+    L6:
+      type: object
+      properties:
+        l7:
+          $ref: '#/components/schemas/L7'
+    L7:
+      type: object
+      properties:
+        l8:
+          $ref: '#/components/schemas/L8'
+    L8:
+      type: object
+      properties:
+        l9:
+          $ref: '#/components/schemas/L9'
+    L9:
+      type: object
+      properties:
+        l10:
+          $ref: '#/components/schemas/L10'
+    L10:
+      type: object
+      properties:
+        value:
+          type: string
+          description: Deep value`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**L2**",
+				"**L3**",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
