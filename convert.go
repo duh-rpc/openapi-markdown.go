@@ -105,6 +105,25 @@ type endpoint struct {
 	operation   *v3.Operation
 }
 
+// schemaField represents information about a single field in a schema
+type schemaField struct {
+	name            string
+	typeStr         string
+	required        bool
+	description     string
+	enum            []interface{}
+	isArray         bool
+	isObject        bool
+	nestedSchemaRef string
+}
+
+// schemaDefinition represents a complete schema with all fields
+type schemaDefinition struct {
+	name        string
+	description string
+	fields      []schemaField
+}
+
 func extractEndpoints(model v3.Document) []endpoint {
 	var endpoints []endpoint
 
@@ -240,6 +259,9 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 					}
 
 					renderParameters(&builder, e.operation)
+					if err := renderRequestBody(&builder, e.operation, examples); err != nil {
+						return "", err
+					}
 					if err := renderResponses(&builder, e.operation, examples); err != nil {
 						return "", err
 					}
@@ -264,6 +286,9 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 				}
 
 				renderParameters(&builder, e.operation)
+				if err := renderRequestBody(&builder, e.operation, examples); err != nil {
+					return "", err
+				}
 				if err := renderResponses(&builder, e.operation, examples); err != nil {
 					return "", err
 				}
@@ -549,4 +574,169 @@ func extractResponseExample(resp *v3.Response, examples map[string]json.RawMessa
 	}
 
 	return "", nil
+}
+
+// extractRequestExample extracts or generates JSON example for request body
+func extractRequestExample(op *v3.Operation, examples map[string]json.RawMessage) (string, error) {
+	if op.RequestBody == nil || op.RequestBody.Content == nil {
+		return "", nil
+	}
+
+	for pair := op.RequestBody.Content.First(); pair != nil; pair = pair.Next() {
+		mediaType := pair.Key()
+		if mediaType != "application/json" {
+			continue
+		}
+
+		mt := pair.Value()
+		if mt == nil {
+			continue
+		}
+
+		if explicit := getExampleFromMediaType(mt); explicit != "" {
+			return explicit, nil
+		}
+
+		if mt.Schema != nil {
+			generated, err := getExampleFromSchema(mt.Schema, examples)
+			if err != nil {
+				return "", err
+			}
+			if generated != "" {
+				return generated, nil
+			}
+		}
+	}
+
+	return "", nil
+}
+
+// renderFieldDefinitions renders field definitions section for a schema
+func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage) error {
+	if schemaProxy == nil {
+		return nil
+	}
+
+	if !schemaProxy.IsReference() {
+		return nil
+	}
+
+	schema := schemaProxy.Schema()
+	if schema == nil {
+		return nil
+	}
+
+	if schema.Properties == nil || schema.Properties.Len() == 0 {
+		return nil
+	}
+
+	builder.WriteString("#### Field Definitions\n\n")
+
+	requiredFields := make(map[string]bool)
+	if schema.Required != nil {
+		for _, req := range schema.Required {
+			requiredFields[req] = true
+		}
+	}
+
+	for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+		fieldName := pair.Key()
+		propSchema := pair.Value()
+
+		if propSchema == nil || propSchema.Schema() == nil {
+			continue
+		}
+
+		prop := propSchema.Schema()
+
+		builder.WriteString("**")
+		builder.WriteString(fieldName)
+		builder.WriteString("**")
+
+		typeStr := ""
+		if len(prop.Type) > 0 {
+			typeStr = prop.Type[0]
+		}
+
+		if typeStr == "array" && prop.Items != nil && prop.Items.IsA() {
+			itemSchema := prop.Items.A.Schema()
+			if itemSchema != nil && len(itemSchema.Type) > 0 {
+				typeStr = itemSchema.Type[0] + " array"
+			}
+		}
+
+		if typeStr != "" {
+			builder.WriteString(" (")
+			builder.WriteString(typeStr)
+			if requiredFields[fieldName] {
+				builder.WriteString(", required")
+			}
+			builder.WriteString(")")
+		}
+
+		builder.WriteString("\n")
+
+		if prop.Description != "" {
+			builder.WriteString("- ")
+			builder.WriteString(prop.Description)
+
+			if prop.Enum != nil && len(prop.Enum) > 0 {
+				builder.WriteString(". Enums: ")
+				for i, enumVal := range prop.Enum {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString("`")
+					builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+					builder.WriteString("`")
+				}
+			}
+
+			builder.WriteString("\n")
+		}
+
+		builder.WriteString("\n")
+	}
+
+	return nil
+}
+
+// renderRequestBody renders request section with JSON and field definitions
+func renderRequestBody(builder *strings.Builder, op *v3.Operation, examples map[string]json.RawMessage) error {
+	if op == nil || op.RequestBody == nil {
+		return nil
+	}
+
+	exampleJSON, err := extractRequestExample(op, examples)
+	if err != nil {
+		return err
+	}
+
+	if exampleJSON == "" {
+		return nil
+	}
+
+	builder.WriteString("### Request\n\n")
+
+	builder.WriteString("```json\n")
+	builder.WriteString(exampleJSON)
+	builder.WriteString("\n```\n\n")
+
+	if op.RequestBody.Content != nil {
+		for pair := op.RequestBody.Content.First(); pair != nil; pair = pair.Next() {
+			mediaType := pair.Key()
+			if mediaType != "application/json" {
+				continue
+			}
+
+			mt := pair.Value()
+			if mt != nil && mt.Schema != nil {
+				if err := renderFieldDefinitions(builder, mt.Schema, examples); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }

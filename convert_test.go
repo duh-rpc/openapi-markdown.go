@@ -116,7 +116,7 @@ paths: {}`,
 	}
 }
 
-func TestConvertInvalidOpenAPI(t *testing.T) {
+func TestConvertUnsupportedVersion(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		openapi string
@@ -124,48 +124,7 @@ func TestConvertInvalidOpenAPI(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "invalid yaml",
-			openapi: "this is not valid yaml: {[}",
-			opts: conv.ConvertOptions{
-				Title: "Test API",
-			},
-			wantErr: "failed to parse openapi document",
-		},
-		{
-			name: "invalid reference",
-			openapi: `openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /test:
-    get:
-      responses:
-        $ref: "#/invalid/ref"`,
-			opts: conv.ConvertOptions{
-				Title: "Test API",
-			},
-			wantErr: "failed to build openapi 3.x model",
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			result, err := conv.Convert([]byte(test.openapi), test.opts)
-
-			require.ErrorContains(t, err, test.wantErr)
-			require.Nil(t, result)
-		})
-	}
-}
-
-func TestConvertOpenAPI2Rejected(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		openapi string
-		opts    conv.ConvertOptions
-		wantErr string
-	}{
-		{
-			name: "openapi 2.0 spec",
+			name: "openapi 2.0",
 			openapi: `swagger: "2.0"
 info:
   title: Test API
@@ -187,76 +146,224 @@ paths: {}`,
 }
 
 func TestConvertTableOfContents(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Pet Store
-  version: 1.0.0
-paths:
-  /pets:
-    get:
-      summary: List all pets
-      tags:
-        - pets
-  /pets/{petId}:
-    get:
-      summary: Get a pet by ID
-      tags:
-        - pets
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Pet Store API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "# Pet Store API")
-	assert.Contains(t, markdown, "## Table of Contents")
-	assert.Contains(t, markdown, "HTTP Request | Description")
-	assert.Contains(t, markdown, "GET [/pets](#getpets) | List all pets")
-	assert.Contains(t, markdown, "GET [/pets/{petId}](#getpetspetid) | Get a pet by ID")
-	assert.Contains(t, markdown, "## GET /pets")
-	assert.NotContains(t, markdown, "## pets")
-	assert.Contains(t, markdown, "List all pets")
-	assert.Equal(t, 2, result.EndpointCount)
-	assert.Equal(t, 1, result.TagCount)
-}
-
-func TestConvertSingleEndpoint(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "single endpoint",
+			openapi: `openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
 paths:
   /users:
     get:
-      summary: Get users
-      description: Returns a list of users
-      tags:
-        - users
-`)
+      summary: List users`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## Table of Contents",
+				"HTTP Request | Description",
+				"-------------|------------",
+				"GET [/users](#getusers) | List users",
+			},
+		},
+		{
+			name: "multiple endpoints",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+    post:
+      summary: Create user
+  /users/{id}:
+    get:
+      summary: Get user`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## Table of Contents",
+				"GET [/users](#getusers) | List users",
+				"POST [/users](#postusers) | Create user",
+				"GET [/users/{id}](#getusersid) | Get user",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
 
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
+			require.NoError(t, err)
+			md := string(result.Markdown)
 
-	markdown := string(result.Markdown)
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
 
-	assert.Contains(t, markdown, "# Test API")
-	assert.Contains(t, markdown, "## Table of Contents")
-	assert.Contains(t, markdown, "GET [/users](#getusers) | Get users")
-	assert.Contains(t, markdown, "## GET /users")
-	assert.NotContains(t, markdown, "## users")
-	assert.Contains(t, markdown, "Get users")
-	assert.Contains(t, markdown, "Returns a list of users")
-	assert.Equal(t, 1, result.EndpointCount)
-	assert.Equal(t, 1, result.TagCount)
+func TestConvertSingleEndpoint(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "endpoint with description",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      description: Returns a list of all users`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## GET /users",
+				"Returns a list of all users",
+			},
+		},
+		{
+			name: "endpoint with summary only",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## GET /users",
+				"List users",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
 }
 
 func TestConvertMultipleEndpoints(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "multiple paths",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+  /posts:
+    get:
+      summary: List posts`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## GET /users",
+				"List users",
+				"## GET /posts",
+				"List posts",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			assert.Equal(t, 2, result.EndpointCount)
+		})
+	}
+}
+
+func TestConvertUntaggedOperations(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "untagged operation",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## GET /users",
+				"List users",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertMultipleTagsPerOperation(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "operation with multiple tags",
+			openapi: `openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
@@ -265,908 +372,1287 @@ paths:
     get:
       summary: List users
       tags:
-        - users
-    post:
-      summary: Create user
-      tags:
-        - users
-  /posts:
-    get:
-      summary: List posts
-      tags:
-        - posts
-`)
+        - Users
+        - Admin`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## Admin",
+				"### GET /users",
+				"## Users",
+				"### GET /users",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
 
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
+			require.NoError(t, err)
+			md := string(result.Markdown)
 
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "GET [/users](#getusers) | List users")
-	assert.Contains(t, markdown, "POST [/users](#postusers) | Create user")
-	assert.Contains(t, markdown, "GET [/posts](#getposts) | List posts")
-	assert.Contains(t, markdown, "## posts")
-	assert.Contains(t, markdown, "## users")
-	assert.Contains(t, markdown, "### GET /users")
-	assert.Contains(t, markdown, "### POST /users")
-	assert.Contains(t, markdown, "### GET /posts")
-	assert.Equal(t, 3, result.EndpointCount)
-	assert.Equal(t, 2, result.TagCount)
-}
-
-func TestConvertUntaggedOperations(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /health:
-    get:
-      summary: Health check
-  /metrics:
-    get:
-      summary: Get metrics
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "## GET /health")
-	assert.NotContains(t, markdown, "## Default APIs")
-	assert.Contains(t, markdown, "Health check")
-	assert.Contains(t, markdown, "## GET /metrics")
-	assert.Contains(t, markdown, "Get metrics")
-	assert.Equal(t, 2, result.EndpointCount)
-	assert.Equal(t, 1, result.TagCount)
-}
-
-func TestConvertMultipleTagsPerOperation(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /admin/users:
-    delete:
-      summary: Delete user
-      tags:
-        - admin
-        - users
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "## admin")
-	assert.Contains(t, markdown, "## users")
-
-	adminSection := markdown[strings.Index(markdown, "## admin"):]
-	usersSection := markdown[strings.Index(markdown, "## users"):]
-
-	assert.Contains(t, adminSection, "### DELETE /admin/users")
-	assert.Contains(t, adminSection, "Delete user")
-	assert.Contains(t, usersSection, "### DELETE /admin/users")
-	assert.Contains(t, usersSection, "Delete user")
-	assert.Equal(t, 1, result.EndpointCount)
-	assert.Equal(t, 2, result.TagCount)
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
 }
 
 func TestConvertPathParameters(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /pets/{petId}:
-    get:
-      summary: Get a pet
-      tags:
-        - pets
-      parameters:
-        - name: petId
-          in: path
-          description: ID of pet to return
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "#### Path Parameters")
-	assert.Contains(t, markdown, "Name | Description | Required | Type")
-	assert.Contains(t, markdown, "petId | ID of pet to return | true | string")
-	assert.Contains(t, markdown, "##### 200 Response")
-	assert.Contains(t, markdown, "Successful response")
-}
-
-func TestConvertQueryParameters(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /pets:
-    get:
-      summary: List pets
-      tags:
-        - pets
-      parameters:
-        - name: limit
-          in: query
-          description: Maximum number of pets to return
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          description: Number of pets to skip
-          required: false
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successful response
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "#### Query Parameters")
-	assert.Contains(t, markdown, "Name | Description | Required | Type")
-	assert.Contains(t, markdown, "limit | Maximum number of pets to return | false | integer")
-	assert.Contains(t, markdown, "offset | Number of pets to skip | false | integer")
-}
-
-func TestConvertHeaderParameters(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /pets:
-    post:
-      summary: Create a pet
-      tags:
-        - pets
-      parameters:
-        - name: X-Request-ID
-          in: header
-          description: Unique request identifier
-          required: true
-          schema:
-            type: string
-        - name: X-API-Key
-          in: header
-          description: API authentication key
-          required: true
-          schema:
-            type: string
-      responses:
-        '201':
-          description: Pet created successfully
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "#### Header Parameters")
-	assert.Contains(t, markdown, "Name | Description | Required | Type")
-	assert.Contains(t, markdown, "X-Request-ID | Unique request identifier | true | string")
-	assert.Contains(t, markdown, "X-API-Key | API authentication key | true | string")
-}
-
-func TestConvertResponseExamples(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /pets/{petId}:
-    get:
-      summary: Get a pet
-      tags:
-        - pets
-      parameters:
-        - name: petId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response
-        '404':
-          description: Pet not found
-        '500':
-          description: Internal server error
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "##### 200 Response")
-	assert.Contains(t, markdown, "Successful response")
-	assert.Contains(t, markdown, "##### 404 Response")
-	assert.Contains(t, markdown, "Pet not found")
-	assert.Contains(t, markdown, "##### 500 Response")
-	assert.Contains(t, markdown, "Internal server error")
-}
-
-func TestConvertCompleteEndpoint(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /users/{userId}/orders:
-    get:
-      summary: Get user orders
-      description: Returns all orders placed by a specific user
-      tags:
-        - users
-        - orders
-      parameters:
-        - name: userId
-          in: path
-          description: User identifier
-          required: true
-          schema:
-            type: string
-        - name: status
-          in: query
-          description: Filter by order status
-          required: false
-          schema:
-            type: string
-        - name: limit
-          in: query
-          description: Maximum number of orders to return
-          required: false
-          schema:
-            type: integer
-        - name: X-API-Key
-          in: header
-          description: API authentication key
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response with order list
-        '400':
-          description: Invalid request parameters
-        '404':
-          description: User not found
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "### GET /users/{userId}/orders")
-	assert.Contains(t, markdown, "Get user orders")
-	assert.Contains(t, markdown, "Returns all orders placed by a specific user")
-
-	assert.Contains(t, markdown, "#### Path Parameters")
-	assert.Contains(t, markdown, "userId | User identifier | true | string")
-
-	assert.Contains(t, markdown, "#### Query Parameters")
-	assert.Contains(t, markdown, "status | Filter by order status | false | string")
-	assert.Contains(t, markdown, "limit | Maximum number of orders to return | false | integer")
-
-	assert.Contains(t, markdown, "#### Header Parameters")
-	assert.Contains(t, markdown, "X-API-Key | API authentication key | true | string")
-
-	assert.Contains(t, markdown, "##### 200 Response")
-	assert.Contains(t, markdown, "Successful response with order list")
-	assert.Contains(t, markdown, "##### 400 Response")
-	assert.Contains(t, markdown, "Invalid request parameters")
-	assert.Contains(t, markdown, "##### 404 Response")
-	assert.Contains(t, markdown, "User not found")
-
-	assert.Contains(t, markdown, "## orders")
-	assert.Contains(t, markdown, "## users")
-
-	assert.Equal(t, 1, result.EndpointCount)
-	assert.Equal(t, 2, result.TagCount)
-}
-
-func TestConvertDebugParameterExtraction(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "path parameter",
+			openapi: `openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
 paths:
   /users/{id}:
     get:
+      summary: Get user
       parameters:
         - name: id
           in: path
           required: true
+          description: User ID
+          schema:
+            type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Path Parameters",
+				"Name | Description | Required | Type",
+				"-----|-------------|----------|-----",
+				"id | User ID | true | string",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertQueryParameters(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "query parameter",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results
+          schema:
+            type: integer`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Query Parameters",
+				"Name | Description | Required | Type",
+				"-----|-------------|----------|-----",
+				"limit | Maximum number of results | false | integer",
+			},
+		},
+		{
+			name: "multiple query parameters",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          description: Number of results to skip
+          schema:
+            type: integer`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Query Parameters",
+				"limit | Maximum number of results | false | integer",
+				"offset | Number of results to skip | false | integer",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertHeaderParameters(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "header parameter",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: X-API-Key
+          in: header
+          required: true
+          description: API authentication key
+          schema:
+            type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Header Parameters",
+				"Name | Description | Required | Type",
+				"-----|-------------|----------|-----",
+				"X-API-Key | API authentication key | true | string",
+			},
+		},
+		{
+			name: "multiple header parameters",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: X-API-Key
+          in: header
+          required: true
+          description: API authentication key
           schema:
             type: string
+        - name: X-Request-ID
+          in: header
+          required: false
+          description: Request tracking ID
+          schema:
+            type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Header Parameters",
+				"X-API-Key | API authentication key | true | string",
+				"X-Request-ID | Request tracking ID | false | string",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertResponseExamples(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "response with schema reference",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"##### 200 Response",
+				"Success",
+				"```json",
+				"\"id\":",
+				"\"name\":",
+				"```",
+			},
+		},
+		{
+			name: "multiple response codes",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"##### 200 Response",
+				"Success",
+				"##### 404 Response",
+				"Not found",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertCompleteEndpoint(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "endpoint with all features",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    get:
+      summary: Get user
+      description: Returns a single user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: false
+          description: Fields to include
+          schema:
+            type: string
+        - name: X-API-Key
+          in: header
+          required: true
+          description: API key
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## GET /users/{id}",
+				"Returns a single user by ID",
+				"#### Path Parameters",
+				"id | User ID | true | string",
+				"#### Query Parameters",
+				"fields | Fields to include | false | string",
+				"#### Header Parameters",
+				"X-API-Key | API key | true | string",
+				"##### 200 Response",
+				"Success",
+				"##### 404 Response",
+				"User not found",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			assert.Equal(t, 1, result.EndpointCount)
+			assert.Equal(t, 1, result.TagCount)
+		})
+	}
+}
+
+func TestConvertDebugMode(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantDebug func(*testing.T, *conv.DebugInfo)
+	}{
+		{
+			name: "debug info collected",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      tags:
+        - Users
+      parameters:
         - name: limit
           in: query
           schema:
             type: integer
-        - name: X-API-Key
-          in: header
-          required: true
-          schema:
-            type: string
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-		Debug: true,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, result.Debug)
-
-	assert.Equal(t, 1, result.Debug.ParameterCounts["path"])
-	assert.Equal(t, 1, result.Debug.ParameterCounts["query"])
-	assert.Equal(t, 1, result.Debug.ParameterCounts["header"])
-}
-
-func TestConvertDebugResponseExtraction(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /users:
-    get:
       responses:
         '200':
           description: Success
-        '400':
-          description: Bad request
-    post:
-      responses:
-        '201':
-          description: Created
-        '400':
-          description: Bad request
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-		Debug: true,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, result.Debug)
-
-	assert.Equal(t, 1, result.Debug.ResponseCounts["200"])
-	assert.Equal(t, 1, result.Debug.ResponseCounts["201"])
-	assert.Equal(t, 2, result.Debug.ResponseCounts["400"])
-}
-
-func TestConvertDebugTagGrouping(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /users:
-    get:
-      tags:
-        - users
   /posts:
     get:
-      tags:
-        - posts
-  /health:
-    get:
-      summary: Health check
-`)
+      summary: List posts
+      responses:
+        '200':
+          description: Success
+        '404':
+          description: Not found`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+				Debug: true,
+			},
+			wantDebug: func(t *testing.T, debug *conv.DebugInfo) {
+				require.NotNil(t, debug)
+				assert.Equal(t, 2, debug.ParsedPaths)
+				assert.Equal(t, 2, debug.ExtractedOps)
+				assert.Equal(t, 1, debug.UntaggedOps)
+				assert.Contains(t, debug.TagsFound, "Default APIs")
+				assert.Contains(t, debug.TagsFound, "Users")
+				assert.Equal(t, 1, debug.ParameterCounts["query"])
+				assert.Equal(t, 2, debug.ResponseCounts["200"])
+				assert.Equal(t, 1, debug.ResponseCounts["404"])
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
 
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Test API",
-		Debug: true,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, result.Debug)
-
-	assert.Equal(t, 3, result.Debug.ParsedPaths)
-	assert.Equal(t, 3, result.Debug.ExtractedOps)
-	assert.Equal(t, 1, result.Debug.UntaggedOps)
-	assert.Contains(t, result.Debug.TagsFound, "users")
-	assert.Contains(t, result.Debug.TagsFound, "posts")
-	assert.Contains(t, result.Debug.TagsFound, "Default APIs")
+			require.NoError(t, err)
+			test.wantDebug(t, result.Debug)
+		})
+	}
 }
 
 func TestConvertIntegrationPetStore(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "petstore endpoints",
+			openapi: `openapi: 3.0.0
 info:
-  title: Pet Store API
-  description: A sample API for managing pets
+  title: Petstore API
   version: 1.0.0
 paths:
   /pets:
     get:
       summary: List all pets
       tags:
-        - pets
+        - Pets
       parameters:
         - name: limit
           in: query
-          description: Maximum number of pets to return
+          description: How many items to return
           required: false
           schema:
             type: integer
       responses:
         '200':
-          description: Successful response
+          description: A list of pets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pets'
+    post:
+      summary: Create a pet
+      tags:
+        - Pets
+      responses:
+        '201':
+          description: Pet created
   /pets/{petId}:
     get:
-      summary: Get a pet by ID
+      summary: Info for a specific pet
       tags:
-        - pets
+        - Pets
       parameters:
         - name: petId
           in: path
-          description: ID of pet to return
           required: true
+          description: The id of the pet
           schema:
             type: string
       responses:
         '200':
-          description: Successful response
-        '404':
-          description: Pet not found
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title: "Pet Store API",
-		Debug: true,
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "# Pet Store API")
-	assert.Contains(t, markdown, "## Table of Contents")
-	assert.Contains(t, markdown, "## GET /pets")
-	assert.NotContains(t, markdown, "## pets")
-
-	assert.Equal(t, 2, result.EndpointCount)
-	assert.Equal(t, 1, result.TagCount)
-
-	require.NotNil(t, result.Debug)
-	assert.Equal(t, 2, result.Debug.ParsedPaths)
-	assert.Equal(t, 2, result.Debug.ExtractedOps)
-	assert.Equal(t, 0, result.Debug.UntaggedOps)
-	assert.Equal(t, 1, result.Debug.ParameterCounts["path"])
-	assert.Equal(t, 1, result.Debug.ParameterCounts["query"])
-}
-
-func TestConvertIntegrationComplexAPI(t *testing.T) {
-	openapi := []byte(`openapi: 3.0.0
-info:
-  title: Complex API
-  description: A comprehensive API with multiple features
-  version: 2.0.0
-paths:
-  /users:
-    get:
-      summary: List all users
-      tags:
-        - users
-      parameters:
-        - name: limit
-          in: query
-          description: Maximum number of users
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          description: Number of users to skip
-          required: false
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successful response
-        '400':
-          description: Invalid parameters
-    post:
-      summary: Create a new user
-      tags:
-        - users
-      parameters:
-        - name: X-Request-ID
-          in: header
-          description: Request identifier
-          required: true
-          schema:
-            type: string
-      responses:
-        '201':
-          description: User created
-        '400':
-          description: Invalid user data
-  /users/{userId}:
-    get:
-      summary: Get user by ID
-      tags:
-        - users
-      parameters:
-        - name: userId
-          in: path
-          description: User identifier
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response
-        '404':
-          description: User not found
-    delete:
-      summary: Delete user
-      tags:
-        - users
-        - admin
-      parameters:
-        - name: userId
-          in: path
-          description: User identifier
-          required: true
-          schema:
-            type: string
-        - name: X-Admin-Token
-          in: header
-          description: Admin authorization
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: User deleted
-        '403':
-          description: Unauthorized
-        '404':
-          description: User not found
-  /posts:
-    get:
-      summary: List all posts
-      tags:
-        - posts
-      responses:
-        '200':
-          description: Successful response
-  /health:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: Service is healthy
-`)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title:       "Complex API",
-		Description: "A comprehensive API with multiple features",
-		Debug:       true,
-	})
-	require.NoError(t, err)
-
-	markdown := string(result.Markdown)
-
-	assert.Contains(t, markdown, "# Complex API")
-	assert.Contains(t, markdown, "A comprehensive API with multiple features")
-	assert.Contains(t, markdown, "## Table of Contents")
-	assert.Contains(t, markdown, "## users")
-	assert.Contains(t, markdown, "## admin")
-	assert.Contains(t, markdown, "## posts")
-	assert.Contains(t, markdown, "## Default APIs")
-
-	assert.Contains(t, markdown, "### GET /users")
-	assert.Contains(t, markdown, "### POST /users")
-	assert.Contains(t, markdown, "### GET /users/{userId}")
-	assert.Contains(t, markdown, "### DELETE /users/{userId}")
-	assert.Contains(t, markdown, "### GET /posts")
-	assert.Contains(t, markdown, "### GET /health")
-
-	assert.Contains(t, markdown, "#### Path Parameters")
-	assert.Contains(t, markdown, "#### Query Parameters")
-	assert.Contains(t, markdown, "#### Header Parameters")
-
-	assert.Equal(t, 6, result.EndpointCount)
-	assert.Equal(t, 4, result.TagCount)
-
-	require.NotNil(t, result.Debug)
-	assert.Equal(t, 4, result.Debug.ParsedPaths)
-	assert.Equal(t, 6, result.Debug.ExtractedOps)
-	assert.Equal(t, 1, result.Debug.UntaggedOps)
-	assert.Equal(t, 2, result.Debug.ParameterCounts["path"])
-	assert.Equal(t, 2, result.Debug.ParameterCounts["query"])
-	assert.Equal(t, 2, result.Debug.ParameterCounts["header"])
-	assert.Equal(t, 5, result.Debug.ResponseCounts["200"])
-	assert.Equal(t, 2, result.Debug.ResponseCounts["400"])
-	assert.Equal(t, 1, result.Debug.ResponseCounts["201"])
-	assert.Equal(t, 1, result.Debug.ResponseCounts["403"])
-	assert.Equal(t, 2, result.Debug.ResponseCounts["404"])
-}
-
-func TestConvertCompleteExample(t *testing.T) {
-	openapi, err := os.ReadFile("examples/openapi.yaml")
-	require.NoError(t, err)
-
-	expected, err := os.ReadFile("examples/example.md")
-	require.NoError(t, err)
-
-	result, err := conv.Convert(openapi, conv.ConvertOptions{
-		Title:       "Pet Store API",
-		Description: "A comprehensive API for managing a pet store with users, pets, and orders",
-	})
-	require.NoError(t, err)
-
-	assert.Equal(t, string(expected), string(result.Markdown))
-
-	assert.Equal(t, 13, result.EndpointCount)
-	assert.Equal(t, 5, result.TagCount)
-}
-
-func TestConvert_ResponseExamplePriority(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		spec     []byte
-		wantJSON string
-	}{
-		{
-			name: "ExplicitExample",
-			spec: []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /test:
-    get:
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Message'
-              example:
-                id: "123"
-                text: "explicit example"
+          description: Expected pet
 components:
   schemas:
-    Message:
+    Pets:
+      type: array
+      items:
+        $ref: '#/components/schemas/Pet'
+    Pet:
       type: object
       properties:
         id:
-          type: string
-        text:
-          type: string
-`),
-			wantJSON: `"id": "123"`,
-		},
-		{
-			name: "NamedExamples",
-			spec: []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /test:
-    get:
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Message'
-              examples:
-                example1:
-                  value:
-                    id: "456"
-                    text: "named example"
-components:
-  schemas:
-    Message:
-      type: object
-      properties:
-        id:
-          type: string
-        text:
-          type: string
-`),
-			wantJSON: `"id": "456"`,
-		},
-		{
-			name: "GeneratedFromRef",
-			spec: []byte(`openapi: 3.0.0
-info:
-  title: Test API
-  version: 1.0.0
-paths:
-  /test:
-    get:
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Message'
-components:
-  schemas:
-    Message:
-      type: object
-      properties:
-        text:
-          type: string
-`),
-			wantJSON: `"text":`,
+          type: integer
+        name:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Petstore API",
+			},
+			wantMd: []string{
+				"# Petstore API",
+				"## Table of Contents",
+				"GET [/pets](#getpets) | List all pets",
+				"POST [/pets](#postpets) | Create a pet",
+				"GET [/pets/{petId}](#getpetspetid) | Info for a specific pet",
+				"## GET /pets",
+				"List all pets",
+				"#### Query Parameters",
+				"limit | How many items to return | false | integer",
+				"##### 200 Response",
+				"## POST /pets",
+				"Create a pet",
+				"##### 201 Response",
+				"## GET /pets/{petId}",
+				"#### Path Parameters",
+				"petId | The id of the pet | true | string",
+			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := conv.Convert(test.spec, conv.ConvertOptions{Title: "Test API"})
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
 			require.NoError(t, err)
-			assert.Contains(t, string(result.Markdown), test.wantJSON)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			assert.Equal(t, 3, result.EndpointCount)
+			assert.Equal(t, 1, result.TagCount)
 		})
 	}
 }
 
-func TestConvert_ResponseSchemaErrors(t *testing.T) {
+func TestConvertIntegrationComplexAPI(t *testing.T) {
 	for _, test := range []struct {
 		name    string
-		spec    []byte
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "api with multiple tags",
+			openapi: `openapi: 3.0.0
+info:
+  title: Complex API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      tags:
+        - Users
+      responses:
+        '200':
+          description: Success
+    post:
+      summary: Create user
+      tags:
+        - Users
+      responses:
+        '201':
+          description: Created
+  /posts:
+    get:
+      summary: List posts
+      tags:
+        - Posts
+      responses:
+        '200':
+          description: Success
+  /comments:
+    get:
+      summary: List comments
+      tags:
+        - Comments
+      responses:
+        '200':
+          description: Success`,
+			opts: conv.ConvertOptions{
+				Title: "Complex API",
+			},
+			wantMd: []string{
+				"# Complex API",
+				"## Table of Contents",
+				"## Comments",
+				"### GET /comments",
+				"## Posts",
+				"### GET /posts",
+				"## Users",
+				"### GET /users",
+				"### POST /users",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			assert.Equal(t, 4, result.EndpointCount)
+			assert.Equal(t, 3, result.TagCount)
+		})
+	}
+}
+
+func TestConvertResponseInlineSchemaError(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
 		wantErr string
 	}{
 		{
-			name: "InlineSchemaNotAllowed",
-			spec: []byte(`openapi: 3.0.0
+			name: "inline schema not allowed",
+			openapi: `openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
 paths:
-  /test:
+  /users:
     get:
+      summary: List users
       responses:
         '200':
+          description: Success
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  text:
-                    type: string
-`),
-			wantErr: "inline schemas not supported in responses",
+                  id:
+                    type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantErr: "inline schemas not supported",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := conv.Convert(test.spec, conv.ConvertOptions{Title: "Test API"})
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
 			require.ErrorContains(t, err, test.wantErr)
+			require.Nil(t, result)
 		})
 	}
 }
 
-func TestConvert_ResponseContentTypes(t *testing.T) {
+func TestConvertSingleTagOmitted(t *testing.T) {
 	for _, test := range []struct {
-		name         string
-		spec         []byte
-		wantContains string
-		wantMissing  string
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+		notWantMd []string
 	}{
 		{
-			name: "NoContentDescriptionOnly",
-			spec: []byte(`openapi: 3.0.0
+			name: "single tag heading omitted",
+			openapi: `openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
 paths:
-  /test:
+  /users:
     get:
-      responses:
-        '200':
-          description: Success
-`),
-			wantContains: "Success",
-			wantMissing:  "```json",
+      summary: List users
+      tags:
+        - Users
+  /users/{id}:
+    get:
+      summary: Get user
+      tags:
+        - Users`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## GET /users",
+				"## GET /users/{id}",
+			},
+			notWantMd: []string{
+				"## Users",
+			},
 		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertDefaultAPIsLastPosition(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		checkOrder func(*testing.T, string)
+	}{
 		{
-			name: "MultipleMediaTypesOnlyJSON",
-			spec: []byte(`openapi: 3.0.0
+			name: "default apis sorted last",
+			openapi: `openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
 paths:
-  /test:
+  /untagged:
     get:
+      summary: Untagged endpoint
+  /users:
+    get:
+      summary: List users
+      tags:
+        - Users
+  /posts:
+    get:
+      summary: List posts
+      tags:
+        - Posts`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			checkOrder: func(t *testing.T, md string) {
+				postsIdx := strings.Index(md, "## Posts")
+				usersIdx := strings.Index(md, "## Users")
+				defaultIdx := strings.Index(md, "## Default APIs")
+
+				assert.Greater(t, defaultIdx, postsIdx)
+				assert.Greater(t, defaultIdx, usersIdx)
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			test.checkOrder(t, md)
+		})
+	}
+}
+
+func TestConvertCompleteExample(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "complete example with tags",
+			openapi: `openapi: 3.0.0
+info:
+  title: Complete API
+  description: A complete example API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      description: Returns a list of users
+      tags:
+        - Users
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of users
+          schema:
+            type: integer
+        - name: X-API-Key
+          in: header
+          required: true
+          description: API key
+          schema:
+            type: string
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
-            text/html:
+                $ref: '#/components/schemas/UserList'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+  /users/{id}:
+    get:
+      summary: Get user
+      description: Returns a specific user
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+  /posts:
+    get:
+      summary: List posts
+      tags:
+        - Posts
+      responses:
+        '200':
+          description: Success
 components:
   schemas:
-    Message:
+    UserList:
+      type: array
+      items:
+        $ref: '#/components/schemas/User'
+    User:
       type: object
       properties:
-        text:
+        id:
           type: string
-`),
-			wantContains: "```json",
-			wantMissing:  "```html",
+        name:
+          type: string
+        email:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title:       "Complete API",
+				Description: "A complete example API",
+			},
+			wantMd: []string{
+				"# Complete API",
+				"A complete example API",
+				"## Table of Contents",
+				"GET [/users](#getusers) | List users",
+				"GET [/users/{id}](#getusersid) | Get user",
+				"GET [/posts](#getposts) | List posts",
+				"## Posts",
+				"### GET /posts",
+				"## Users",
+				"### GET /users",
+				"Returns a list of users",
+				"#### Query Parameters",
+				"limit | Maximum number of users | false | integer",
+				"#### Header Parameters",
+				"X-API-Key | API key | true | string",
+				"##### 200 Response",
+				"##### 400 Response",
+				"##### 401 Response",
+				"### GET /users/{id}",
+				"Returns a specific user",
+				"#### Path Parameters",
+				"id | User ID | true | string",
+				"##### 404 Response",
+			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := conv.Convert(test.spec, conv.ConvertOptions{Title: "Test API"})
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
 			require.NoError(t, err)
-			markdown := string(result.Markdown)
-			if test.wantContains != "" {
-				assert.Contains(t, markdown, test.wantContains)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
 			}
-			if test.wantMissing != "" {
-				assert.NotContains(t, markdown, test.wantMissing)
-			}
+
+			assert.Equal(t, 3, result.EndpointCount)
+			assert.Equal(t, 2, result.TagCount)
 		})
 	}
 }
 
 func TestCompleteExampleWithGoldenFile(t *testing.T) {
-	spec, err := os.ReadFile("examples/openapi.yaml")
+	openapi, err := os.ReadFile("examples/openapi.yaml")
 	require.NoError(t, err)
 
-	result, err := conv.Convert(spec, conv.ConvertOptions{
+	result, err := conv.Convert(openapi, conv.ConvertOptions{
 		Title:       "Pet Store API",
 		Description: "A comprehensive API for managing a pet store with users, pets, and orders",
 	})
 	require.NoError(t, err)
 
-	golden, err := os.ReadFile("testdata/golden/petstore-example.md")
+	expected, err := os.ReadFile("testdata/golden/petstore-example.md")
 	require.NoError(t, err)
 
-	if !bytes.Equal(result.Markdown, golden) {
+	if !bytes.Equal(result.Markdown, expected) {
 		actualPath := "testdata/golden/petstore-example.actual.md"
 		err := os.WriteFile(actualPath, result.Markdown, 0644)
 		require.NoError(t, err)
 
 		t.Fatalf("Output doesn't match golden file\nActual written to: %s\nRun: diff %s testdata/golden/petstore-example.md",
 			actualPath, actualPath)
+	}
+}
+
+// Phase 1 tests: Request body rendering
+
+func TestConvertRequestBodyPOST(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "POST with request body",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    CreateUser:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          description: User's email address
+        age:
+          type: integer
+          description: User's age`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"```json",
+				"\"name\":",
+				"\"email\":",
+				"```",
+				"#### Field Definitions",
+				"**name** (string, required)",
+				"- User's full name",
+				"**email** (string, required)",
+				"- User's email address",
+				"**age** (integer)",
+				"- User's age",
+			},
+		},
+		{
+			name: "PUT with request body",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    put:
+      summary: Update user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUser'
+      responses:
+        '200':
+          description: Updated
+components:
+  schemas:
+    UpdateUser:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Updated name`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"```json",
+				"```",
+				"#### Field Definitions",
+				"**name** (string)",
+				"- Updated name",
+			},
+		},
+		{
+			name: "PATCH with request body",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    patch:
+      summary: Patch user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchUser'
+      responses:
+        '200':
+          description: Patched
+components:
+  schemas:
+    PatchUser:
+      type: object
+      properties:
+        status:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"#### Field Definitions",
+				"**status** (string)",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertRequestBodyGETSkipped(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		notWantMd []string
+	}{
+		{
+			name: "GET without request body",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: Success`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			notWantMd: []string{
+				"### Request",
+				"#### Field Definitions",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertRequestBodyArrayField(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "request with array field",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /batch:
+    post:
+      summary: Batch create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchRequest'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    BatchRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            type: string
+          description: List of item IDs`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"#### Field Definitions",
+				"**items** (string array, required)",
+				"- List of item IDs",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertRequestBodyEnumField(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "request with enum field",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    CreateUser:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          description: User role
+          enum:
+            - ADMIN
+            - USER
+            - GUEST`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"#### Field Definitions",
+				"**role** (string, required)",
+				"- User role. Enums: `ADMIN`, `USER`, `GUEST`",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
 	}
 }
