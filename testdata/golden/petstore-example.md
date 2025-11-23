@@ -32,7 +32,22 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 X-Admin-Token | Admin authorization token | true | string
 
-##### 200 Response
+### Request
+
+```json
+{
+   "petId": "dl2INvNSQT"
+}
+```
+
+#### Field Definitions
+
+**petId** (string, required)
+- ID of pet to delete
+
+### Responses
+
+#### 200 Response
 
 Pet deleted successfully
 
@@ -45,7 +60,11 @@ Pet deleted successfully
 }
 ```
 
-##### 403 Response
+#### Field Definitions
+
+**pet** (object)
+
+#### 403 Response
 
 Unauthorized
 
@@ -56,7 +75,7 @@ Unauthorized
 }
 ```
 
-##### 404 Response
+#### 404 Response
 
 Pet not found
 
@@ -77,7 +96,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 X-Admin-Token | Admin authorization token | true | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Metrics data
 
@@ -89,7 +110,15 @@ Metrics data
 }
 ```
 
-##### 403 Response
+#### Field Definitions
+
+**requestsTotal** (integer)
+
+**requestsPerSecond** (number)
+
+**uptime** (integer)
+
+#### 403 Response
 
 Unauthorized
 
@@ -118,7 +147,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 status | Filter by order status | false | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -137,7 +168,20 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+**orders** (array of objects)
+
+**cursor** (string)
+
+**Order**
+- `id` (string)
+- `userId` (string)
+- `petId` (string)
+- `status` (string)
+- `quantity` (integer)
+
+#### 404 Response
 
 User not found
 
@@ -159,7 +203,9 @@ Name | Description | Required | Type
 after | Cursor for pagination - returns orders after this cursor | false | string
 first | Number of orders to return (cursor-based pagination) | false | integer
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -178,11 +224,26 @@ Successful response
 }
 ```
 
+#### Field Definitions
+
+**orders** (array of objects)
+
+**cursor** (string)
+
+**Order**
+- `id` (string)
+- `userId` (string)
+- `petId` (string)
+- `status` (string)
+- `quantity` (integer)
+
 ### POST /v3/orders
 
 Place a new order for pets
 
-##### 201 Response
+### Responses
+
+#### 201 Response
 
 Order created successfully
 
@@ -193,7 +254,13 @@ Order created successfully
 }
 ```
 
-##### 400 Response
+#### Field Definitions
+
+**id** (string)
+
+**message** (string)
+
+#### 400 Response
 
 Invalid order data
 
@@ -214,7 +281,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 orderId | Order identifier | true | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -228,7 +297,19 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+**id** (string)
+
+**userId** (string)
+
+**petId** (string)
+
+**status** (string)
+
+**quantity** (integer)
+
+#### 404 Response
 
 Order not found
 
@@ -253,7 +334,9 @@ after | Cursor for pagination - returns pets after this cursor | false | string
 first | Number of pets to return (cursor-based pagination) | false | integer
 tag | Filter by tag | false | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response with pet list
 
@@ -274,7 +357,19 @@ Successful response with pet list
 }
 ```
 
-##### 400 Response
+#### Field Definitions
+
+**pets** (array of objects)
+
+**cursor** (string)
+
+**Pet**
+- `id` (string)
+- `name` (string)
+- `status` (string)
+- `tags` (string array)
+
+#### 400 Response
 
 Invalid request parameters
 
@@ -295,7 +390,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 X-Request-ID | Unique request identifier | true | string
 
-##### 201 Response
+### Responses
+
+#### 201 Response
 
 Pet created successfully
 
@@ -306,7 +403,13 @@ Pet created successfully
 }
 ```
 
-##### 400 Response
+#### Field Definitions
+
+**id** (string)
+
+**message** (string)
+
+#### 400 Response
 
 Invalid pet data
 
@@ -327,7 +430,22 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 X-Admin-Token | Admin authorization token | true | string
 
-##### 200 Response
+### Request
+
+```json
+{
+   "petId": "dl2INvNSQT"
+}
+```
+
+#### Field Definitions
+
+**petId** (string, required)
+- ID of pet to delete
+
+### Responses
+
+#### 200 Response
 
 Pet deleted successfully
 
@@ -340,7 +458,11 @@ Pet deleted successfully
 }
 ```
 
-##### 403 Response
+#### Field Definitions
+
+**pet** (object)
+
+#### 403 Response
 
 Unauthorized
 
@@ -351,7 +473,7 @@ Unauthorized
 }
 ```
 
-##### 404 Response
+#### 404 Response
 
 Pet not found
 
@@ -372,7 +494,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 petId | ID of pet to return | true | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -387,7 +511,17 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+**id** (string)
+
+**name** (string)
+
+**status** (string)
+
+**tags** (string array)
+
+#### 404 Response
 
 Pet not found
 
@@ -410,7 +544,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 active | Filter by active status | false | boolean
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -427,11 +563,23 @@ Successful response
 }
 ```
 
+#### Field Definitions
+
+**users** (array of objects)
+
+**User**
+- `id` (string)
+- `username` (string)
+- `email` (string)
+- `active` (boolean)
+
 ### POST /v3/users
 
 Register a new user account
 
-##### 201 Response
+### Responses
+
+#### 201 Response
 
 User created successfully
 
@@ -442,7 +590,13 @@ User created successfully
 }
 ```
 
-##### 400 Response
+#### Field Definitions
+
+**id** (string)
+
+**message** (string)
+
+#### 400 Response
 
 Invalid user data
 
@@ -463,7 +617,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 userId | User identifier | true | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -476,7 +632,17 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+**id** (string)
+
+**username** (string)
+
+**email** (string)
+
+**active** (boolean)
+
+#### 404 Response
 
 User not found
 
@@ -503,7 +669,9 @@ Name | Description | Required | Type
 -----|-------------|----------|-----
 status | Filter by order status | false | string
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Successful response
 
@@ -522,7 +690,20 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+**orders** (array of objects)
+
+**cursor** (string)
+
+**Order**
+- `id` (string)
+- `userId` (string)
+- `petId` (string)
+- `status` (string)
+- `quantity` (integer)
+
+#### 404 Response
 
 User not found
 
@@ -539,7 +720,9 @@ User not found
 
 Returns the health status of the API
 
-##### 200 Response
+### Responses
+
+#### 200 Response
 
 Service is healthy
 
@@ -549,4 +732,10 @@ Service is healthy
    "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+#### Field Definitions
+
+**status** (string)
+
+**timestamp** (string)
 

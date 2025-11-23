@@ -366,10 +366,66 @@ func renderParamTable(builder *strings.Builder, paramType string, params []v3.Pa
 	builder.WriteString("\n")
 }
 
+// identifySharedResponseSchemas finds schemas used in multiple 2xx responses within the same endpoint
+func identifySharedResponseSchemas(op *v3.Operation) map[string][]string {
+	if op == nil || op.Responses == nil || op.Responses.Codes == nil {
+		return nil
+	}
+
+	schemaToResponses := make(map[string][]string)
+
+	// Iterate through all response codes
+	for pair := op.Responses.Codes.First(); pair != nil; pair = pair.Next() {
+		code := pair.Key()
+
+		// Only consider 2xx responses
+		if !strings.HasPrefix(code, "2") {
+			continue
+		}
+
+		resp := pair.Value()
+		if resp == nil || resp.Content == nil {
+			continue
+		}
+
+		// Find application/json media type
+		for contentPair := resp.Content.First(); contentPair != nil; contentPair = contentPair.Next() {
+			if contentPair.Key() != "application/json" {
+				continue
+			}
+
+			mt := contentPair.Value()
+			if mt == nil || mt.Schema == nil {
+				continue
+			}
+
+			if mt.Schema.IsReference() {
+				ref := mt.Schema.GetReference()
+				schemaName, err := extractSchemaName(ref)
+				if err == nil {
+					schemaToResponses[schemaName] = append(schemaToResponses[schemaName], code)
+				}
+			}
+		}
+	}
+
+	// Return only schemas that appear in 2+ responses
+	sharedSchemas := make(map[string][]string)
+	for schemaName, responseCodes := range schemaToResponses {
+		if len(responseCodes) >= 2 {
+			sharedSchemas[schemaName] = responseCodes
+		}
+	}
+
+	return sharedSchemas
+}
+
 func renderResponses(builder *strings.Builder, op *v3.Operation, examples map[string]json.RawMessage) error {
 	if op == nil || op.Responses == nil || op.Responses.Codes == nil {
 		return nil
 	}
+
+	builder.WriteString("### Responses\n\n")
 
 	codes := []string{}
 	for pair := op.Responses.Codes.First(); pair != nil; pair = pair.Next() {
@@ -377,10 +433,17 @@ func renderResponses(builder *strings.Builder, op *v3.Operation, examples map[st
 	}
 	sort.Strings(codes)
 
+	// Identify shared schemas across 2xx responses
+	sharedSchemas := identifySharedResponseSchemas(op)
+
+	// Track which schemas we've already rendered field definitions for
+	renderedSchemas := make(map[string]bool)
+
+	// Render each response
 	for _, code := range codes {
 		resp := op.Responses.Codes.GetOrZero(code)
 
-		builder.WriteString("##### ")
+		builder.WriteString("#### ")
 		builder.WriteString(code)
 		builder.WriteString(" Response\n\n")
 
@@ -398,6 +461,53 @@ func renderResponses(builder *strings.Builder, op *v3.Operation, examples map[st
 			builder.WriteString("```json\n")
 			builder.WriteString(exampleJSON)
 			builder.WriteString("\n```\n\n")
+		}
+
+		// Only render field definitions for 2xx responses
+		if strings.HasPrefix(code, "2") {
+			// Get schema for this response
+			var schemaProxy *base.SchemaProxy
+			if resp.Content != nil {
+				for pair := resp.Content.First(); pair != nil; pair = pair.Next() {
+					if pair.Key() == "application/json" {
+						mt := pair.Value()
+						if mt != nil && mt.Schema != nil {
+							schemaProxy = mt.Schema
+							break
+						}
+					}
+				}
+			}
+
+			if schemaProxy != nil && schemaProxy.IsReference() {
+				schemaName, err := extractSchemaName(schemaProxy.GetReference())
+				if err == nil {
+					// Check if this schema is shared with other 2xx responses
+					if responseCodes, isShared := sharedSchemas[schemaName]; isShared && !renderedSchemas[schemaName] {
+						// Render field definitions once with note about which responses it applies to
+						builder.WriteString("#### Field Definitions (applies to ")
+						for i, rc := range responseCodes {
+							if i > 0 {
+								builder.WriteString(", ")
+							}
+							builder.WriteString(rc)
+						}
+						builder.WriteString(" responses)\n\n")
+
+						if err := renderFieldDefinitionsContent(builder, schemaProxy, examples); err != nil {
+							return err
+						}
+
+						renderedSchemas[schemaName] = true
+					} else if !isShared {
+						// Not shared, render field definitions normally
+						builder.WriteString("#### Field Definitions\n\n")
+						if err := renderFieldDefinitionsContent(builder, schemaProxy, examples); err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -611,8 +721,8 @@ func extractRequestExample(op *v3.Operation, examples map[string]json.RawMessage
 	return "", nil
 }
 
-// renderFieldDefinitions renders field definitions section for a schema
-func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage) error {
+// renderFieldDefinitionsContent renders the content of field definitions (without the header)
+func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage) error {
 	if schemaProxy == nil {
 		return nil
 	}
@@ -629,8 +739,6 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 	if schema.Properties == nil || schema.Properties.Len() == 0 {
 		return nil
 	}
-
-	builder.WriteString("#### Field Definitions\n\n")
 
 	const maxDepth = 10
 	visited := make(map[string]int)
@@ -694,6 +802,30 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 	}
 
 	return nil
+}
+
+// renderFieldDefinitions renders field definitions section for a schema
+func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage) error {
+	if schemaProxy == nil {
+		return nil
+	}
+
+	if !schemaProxy.IsReference() {
+		return nil
+	}
+
+	schema := schemaProxy.Schema()
+	if schema == nil {
+		return nil
+	}
+
+	if schema.Properties == nil || schema.Properties.Len() == 0 {
+		return nil
+	}
+
+	builder.WriteString("#### Field Definitions\n\n")
+
+	return renderFieldDefinitionsContent(builder, schemaProxy, examples)
 }
 
 // renderRequestBody renders request section with JSON and field definitions

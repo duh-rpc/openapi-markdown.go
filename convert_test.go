@@ -643,7 +643,8 @@ components:
 				Title: "Test API",
 			},
 			wantMd: []string{
-				"##### 200 Response",
+				"### Responses",
+				"#### 200 Response",
 				"Success",
 				"```json",
 				"\"id\":",
@@ -681,9 +682,10 @@ components:
 				Title: "Test API",
 			},
 			wantMd: []string{
-				"##### 200 Response",
+				"### Responses",
+				"#### 200 Response",
 				"Success",
-				"##### 404 Response",
+				"#### 404 Response",
 				"Not found",
 			},
 		},
@@ -768,9 +770,10 @@ components:
 				"fields | Fields to include | false | string",
 				"#### Header Parameters",
 				"X-API-Key | API key | true | string",
-				"##### 200 Response",
+				"### Responses",
+				"#### 200 Response",
 				"Success",
-				"##### 404 Response",
+				"#### 404 Response",
 				"User not found",
 			},
 		},
@@ -933,10 +936,12 @@ components:
 				"List all pets",
 				"#### Query Parameters",
 				"limit | How many items to return | false | integer",
-				"##### 200 Response",
+				"### Responses",
+				"#### 200 Response",
 				"## POST /pets",
 				"Create a pet",
-				"##### 201 Response",
+				"### Responses",
+				"#### 201 Response",
 				"## GET /pets/{petId}",
 				"#### Path Parameters",
 				"petId | The id of the pet | true | string",
@@ -1293,14 +1298,16 @@ components:
 				"limit | Maximum number of users | false | integer",
 				"#### Header Parameters",
 				"X-API-Key | API key | true | string",
-				"##### 200 Response",
-				"##### 400 Response",
-				"##### 401 Response",
+				"### Responses",
+				"#### 200 Response",
+				"#### 400 Response",
+				"#### 401 Response",
 				"### GET /users/{id}",
 				"Returns a specific user",
 				"#### Path Parameters",
 				"id | User ID | true | string",
-				"##### 404 Response",
+				"### Responses",
+				"#### 404 Response",
 			},
 		},
 	} {
@@ -2025,6 +2032,348 @@ components:
 			wantMd: []string{
 				"**L2**",
 				"**L3**",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertResponseFieldDefinitions2xx(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "200 response with field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: User identifier
+        name:
+          type: string
+          description: User name`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Responses",
+				"#### 200 Response",
+				"Success",
+				"```json",
+				"#### Field Definitions",
+				"**id** (string, required)",
+				"- User identifier",
+				"**name** (string)",
+				"- User name",
+			},
+		},
+		{
+			name: "201 response with field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    CreateUser:
+      type: object
+      properties:
+        name:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Responses",
+				"#### 201 Response",
+				"Created",
+				"#### Field Definitions",
+				"**id** (string)",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertResponseFieldDefinitions4xx(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+		notMd   []string
+	}{
+		{
+			name: "400 response without field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      responses:
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Responses",
+				"#### 400 Response",
+				"Bad request",
+				"```json",
+			},
+			notMd: []string{
+				"#### Field Definitions",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertResponsesSectionHeader(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "responses section header present",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: Get users
+      responses:
+        '200':
+          description: Success`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Responses",
+				"#### 200 Response",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertResponseHeadingLevel(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+		notMd   []string
+	}{
+		{
+			name: "response uses H4 not H5",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: Get users
+      responses:
+        '200':
+          description: Success
+        '404':
+          description: Not found`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### 200 Response",
+				"#### 404 Response",
+			},
+			notMd: []string{
+				"##### 200 Response",
+				"##### 404 Response",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertResponseSharedSchema(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "shared schema in multiple 2xx responses",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      responses:
+        '200':
+          description: Success (existing user)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '201':
+          description: Created (new user)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        name:
+          type: string
+          description: User name`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### 200 Response",
+				"Success (existing user)",
+				"#### 201 Response",
+				"Created (new user)",
+				"#### Field Definitions (applies to 200, 201 responses)",
+				"**id** (string)",
+				"**name** (string)",
 			},
 		},
 	} {
