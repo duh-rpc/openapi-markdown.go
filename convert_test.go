@@ -2670,3 +2670,400 @@ paths:
 		})
 	}
 }
+
+func TestConvertSharedSchemaAcrossEndpoints(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "schema used in multiple endpoints",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      required:
+        - id
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"## Shared Schema Definitions",
+				"### User {#user}",
+				"### Error {#error}",
+				"Used in: GET /users/{id}, POST /users, PUT /users/{id}",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertFieldDefinitionsReferenceShared(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "endpoint references shared schema",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"See [User](#user)",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertNonSharedSchemaInline(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "schema used in single endpoint only",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserRequest'
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          description: Email address
+      required:
+        - name
+        - email`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**name** (string, required)",
+				"User's full name",
+				"**email** (string, required)",
+				"Email address",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			assert.NotContains(t, md, "## Shared Schema Definitions")
+		})
+	}
+}
+
+func TestConvertSharedDefinitionsSectionPlacement(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+	}{
+		{
+			name: "shared definitions appear after TOC",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			tocIdx := strings.Index(md, "## Table of Contents")
+			sharedIdx := strings.Index(md, "## Shared Schema Definitions")
+			endpointIdx := strings.Index(md, "## POST /users")
+
+			require.NotEqual(t, -1, tocIdx, "TOC should be present")
+			require.NotEqual(t, -1, sharedIdx, "Shared definitions should be present")
+			require.NotEqual(t, -1, endpointIdx, "Endpoint should be present")
+
+			assert.True(t, tocIdx < sharedIdx, "TOC should come before shared definitions")
+			assert.True(t, sharedIdx < endpointIdx, "Shared definitions should come before endpoints")
+		})
+	}
+}
+
+func TestConvertSharedSchemaWithinEndpoint(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		notWantMd []string
+	}{
+		{
+			name: "schema used in request and response of same endpoint not shared",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserRequest'
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			notWantMd: []string{
+				"## Shared Schema Definitions",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
