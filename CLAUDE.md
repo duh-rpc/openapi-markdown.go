@@ -16,24 +16,25 @@ API (`Convert()`) and follows functional testing principles where all tests inte
 - **`ConvertResult`**: Output struct containing Markdown bytes, counts, and optional Debug info
 - **`DebugInfo`**: Observability structure exposing internal conversion metrics for testing
 
-### Response Example Generation
+### Example Generation
 
-The converter uses a three-tier priority system for generating JSON examples:
+The converter uses a three-tier priority system for generating JSON examples for both request bodies and responses:
 
-1. **Explicit examples**: Uses `example` field from response media type
+1. **Explicit examples**: Uses `example` field from media type
 2. **Named examples**: Uses first entry from `examples` collection
 3. **Schema-based**: Generates from $ref using `openapi-schema.go` library
 
-**Critical constraint**: Response schemas MUST use `$ref` to reference schemas in `components/schemas`. Inline schemas in responses are rejected with an error.
+**Critical constraint**: Request and response schemas MUST use `$ref` to reference schemas in `components/schemas`. Inline schemas are rejected with an error.
 
 ### Internal Flow
 
 1. Parse OpenAPI document with `libopenapi`
 2. Generate component examples using `openapi-schema.go`
 3. Extract endpoints from paths
-4. Group endpoints by tags (untagged operations go to "Default APIs")
-5. Generate markdown with TOC, tag sections, and endpoints
-6. Collect debug info if requested
+4. Identify shared schemas (used across multiple endpoints)
+5. Group endpoints by tags (untagged operations go to "Default APIs")
+6. Generate markdown with TOC, shared schema definitions, tag sections, and endpoints
+7. Collect debug info if requested
 
 ### Tag Grouping Behavior
 
@@ -41,6 +42,41 @@ The converter uses a three-tier priority system for generating JSON examples:
 - Untagged operations grouped under "Default APIs"
 - When only one tag exists, tag sections are omitted (endpoints rendered at top level)
 - "Default APIs" section is always sorted last
+
+### Field Definitions Format
+
+The converter renders comprehensive field definitions for request bodies, responses, and parameters using a hierarchical format:
+
+**Request Bodies** (POST/PUT/PATCH/DELETE):
+- JSON example generated from schema
+- Field definitions section documenting each field
+- Top-level objects use bold headers: `**fieldName**`
+- Nested fields use bulleted list with backticks: `` - `fieldName` (type, required): Description ``
+- Nested objects get separate definition sections
+
+**Responses**:
+- All responses show JSON examples
+- Field definitions only for 2xx success responses
+- 4xx/5xx error responses show JSON only (no field docs)
+- Responses use H4 headings: `#### 200 Response`
+
+**Parameters**:
+- Path and Query parameters use field definitions format: `**paramName** (type, required)`
+- Headers remain in table format for compactness
+- Enum values shown inline with field: `` Enums: `VAL1`, `VAL2` ``
+
+**Shared Schemas**:
+- Schemas used across multiple endpoints documented once in "Shared Schema Definitions" section
+- Endpoints reference shared schemas instead of duplicating documentation
+- Same-endpoint reuse (e.g., request + response) does NOT create shared schema
+
+**Nesting and Recursion**:
+- Maximum nesting depth: 10 levels
+- Recursive schemas capped at depth 1 (marked as "(recursive)")
+- Arrays of primitives shown inline with enums
+- Arrays of objects expect named component schemas
+
+Reference: `examples/updated-example.md` shows canonical format with nested objects, arrays, and enums.
 
 ## Regenerating Example Output
 
