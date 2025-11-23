@@ -59,6 +59,7 @@ X-Token | Auth token | true | string
 
 #### Field Definitions
 
+// REVIEW: This is incorrect, The field description should be inline with the `field` along with any enums associated with this field. (See updated-example.md)
 **field** (string, required)
 - Field description. Enums: `VALUE1`, `VALUE2`
 
@@ -823,6 +824,7 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 
 **Function Responsibilities**:
 - Write "## Shared Schema Definitions" header
+// REVIEW: The {#anchor} format is not universal to all markdown renders, we should omit this and rely upon auto anchor generation which is common for github, vscode, gitlab, etc...
 - For each shared schema: write "### {SchemaName}" subheader
 - Call `renderFieldDefinitions()` to document schema fields
 - Include note about where schema is used: "Used in: POST /users (request), GET /users (response)"

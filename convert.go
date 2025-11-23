@@ -19,6 +19,7 @@ type ConvertResult struct {
 	Markdown      []byte
 	EndpointCount int
 	TagCount      int
+	Warnings      []string
 	Debug         *DebugInfo
 }
 
@@ -82,7 +83,7 @@ func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) {
 	endpoints := extractEndpoints(v3Model.Model)
 	tagGroups := groupByTags(endpoints)
 	sharedSchemas := identifySharedSchemas(endpoints)
-	markdown, err := generateMarkdown(opts, endpoints, tagGroups, examples, sharedSchemas, v3Model.Model)
+	markdown, warnings, err := generateMarkdown(opts, endpoints, tagGroups, examples, sharedSchemas, v3Model.Model)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +92,7 @@ func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) {
 		Markdown:      []byte(markdown),
 		EndpointCount: len(endpoints),
 		TagCount:      len(tagGroups),
+		Warnings:      warnings,
 	}
 
 	if opts.Debug {
@@ -305,14 +307,9 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 	for _, schemaName := range schemaNames {
 		usage := sharedSchemas[schemaName]
 
-		// Create anchor for this schema
-		anchor := makeSchemaAnchor(schemaName)
-
 		builder.WriteString("### ")
 		builder.WriteString(schemaName)
-		builder.WriteString(" {#")
-		builder.WriteString(anchor)
-		builder.WriteString("}\n\n")
+		builder.WriteString("\n\n")
 
 		// Add usage note
 		if len(usage.endpoints) > 0 {
@@ -369,19 +366,22 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 						}
 
 						if field.description != "" {
-							builder.WriteString("\n- ")
+							builder.WriteString(" ")
 							builder.WriteString(field.description)
+						} else if !field.isObject {
+							// Warn about missing description for non-object fields
+							log.Printf("Warning: Field '%s' in schema '%s' is missing a description", field.name, schemaName)
+						}
 
-							if field.enum != nil && len(field.enum) > 0 {
-								builder.WriteString(". Enums: ")
-								for i, enumVal := range field.enum {
-									if i > 0 {
-										builder.WriteString(", ")
-									}
-									builder.WriteString("`")
-									builder.WriteString(fmt.Sprintf("%v", enumVal))
-									builder.WriteString("`")
+						if field.enum != nil && len(field.enum) > 0 {
+							builder.WriteString(" Enums: ")
+							for i, enumVal := range field.enum {
+								if i > 0 {
+									builder.WriteString(", ")
 								}
+								builder.WriteString("`")
+								builder.WriteString(fmt.Sprintf("%v", enumVal))
+								builder.WriteString("`")
 							}
 						}
 
@@ -402,8 +402,9 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 	return nil
 }
 
-func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[string][]endpoint, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage, model v3.Document) (string, error) {
+func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[string][]endpoint, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage, model v3.Document) (string, []string, error) {
 	var builder strings.Builder
+	var warnings []string
 
 	builder.WriteString("# ")
 	builder.WriteString(opts.Title)
@@ -432,11 +433,6 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 		}
 
 		builder.WriteString("\n")
-
-		// Render shared schema definitions section
-		if err := renderSharedDefinitions(&builder, sharedSchemas, model, examples); err != nil {
-			return "", err
-		}
 
 		tags := make([]string, 0, len(tagGroups))
 		for tag := range tagGroups {
@@ -483,10 +479,10 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 
 					renderParameters(&builder, e.operation)
 					if err := renderRequestBody(&builder, e.operation, examples, sharedSchemas); err != nil {
-						return "", err
+						return "", nil, err
 					}
 					if err := renderResponses(&builder, e.operation, examples, sharedSchemas); err != nil {
-						return "", err
+						return "", nil, err
 					}
 				}
 			}
@@ -510,16 +506,21 @@ func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[s
 
 				renderParameters(&builder, e.operation)
 				if err := renderRequestBody(&builder, e.operation, examples, sharedSchemas); err != nil {
-					return "", err
+					return "", nil, err
 				}
 				if err := renderResponses(&builder, e.operation, examples, sharedSchemas); err != nil {
-					return "", err
+					return "", nil, err
 				}
 			}
 		}
+
+		// Render shared schema definitions section at the bottom
+		if err := renderSharedDefinitions(&builder, sharedSchemas, model, examples); err != nil {
+			return "", nil, err
+		}
 	}
 
-	return builder.String(), nil
+	return builder.String(), warnings, nil
 }
 
 func renderParameters(builder *strings.Builder, op *v3.Operation) {
@@ -610,7 +611,7 @@ func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Paramete
 			// Get required status
 			required := param.Required != nil && *param.Required
 
-			// Format: **paramName** (type, required)
+			// Format: **paramName** (type, required) Description
 			builder.WriteString("**")
 			builder.WriteString(param.Name)
 			builder.WriteString("** (")
@@ -618,28 +619,28 @@ func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Paramete
 			if required {
 				builder.WriteString(", required")
 			}
-			builder.WriteString(")\n")
+			builder.WriteString(")")
 
-			// Description as bullet
+			// Description inline
 			if param.Description != "" {
-				builder.WriteString("- ")
+				builder.WriteString(" ")
 				builder.WriteString(param.Description)
-
-				// Add enums if present
-				if schema.Enum != nil && len(schema.Enum) > 0 {
-					builder.WriteString(". Enums: ")
-					for i, enumVal := range schema.Enum {
-						if i > 0 {
-							builder.WriteString(", ")
-						}
-						builder.WriteString("`")
-						builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
-						builder.WriteString("`")
-					}
-				}
-				builder.WriteString("\n")
 			}
-			builder.WriteString("\n")
+
+			// Add enums if present
+			if schema.Enum != nil && len(schema.Enum) > 0 {
+				builder.WriteString(" Enums: ")
+				for i, enumVal := range schema.Enum {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString("`")
+					builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+					builder.WriteString("`")
+				}
+			}
+
+			builder.WriteString("\n\n")
 		}
 	}
 }
@@ -665,7 +666,7 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 			// Get required status
 			required := param.Required != nil && *param.Required
 
-			// Format: **paramName** (type, required)
+			// Format: **paramName** (type, required) Description
 			builder.WriteString("**")
 			builder.WriteString(param.Name)
 			builder.WriteString("** (")
@@ -673,28 +674,28 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 			if required {
 				builder.WriteString(", required")
 			}
-			builder.WriteString(")\n")
+			builder.WriteString(")")
 
-			// Description as bullet
+			// Description inline
 			if param.Description != "" {
-				builder.WriteString("- ")
+				builder.WriteString(" ")
 				builder.WriteString(param.Description)
-
-				// Add enums if present
-				if schema.Enum != nil && len(schema.Enum) > 0 {
-					builder.WriteString(". Enums: ")
-					for i, enumVal := range schema.Enum {
-						if i > 0 {
-							builder.WriteString(", ")
-						}
-						builder.WriteString("`")
-						builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
-						builder.WriteString("`")
-					}
-				}
-				builder.WriteString("\n")
 			}
-			builder.WriteString("\n")
+
+			// Add enums if present
+			if schema.Enum != nil && len(schema.Enum) > 0 {
+				builder.WriteString(" Enums: ")
+				for i, enumVal := range schema.Enum {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString("`")
+					builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+					builder.WriteString("`")
+				}
+			}
+
+			builder.WriteString("\n\n")
 		}
 	}
 }
@@ -1167,19 +1168,22 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 		}
 
 		if field.description != "" {
-			builder.WriteString("\n- ")
+			builder.WriteString(" ")
 			builder.WriteString(field.description)
+		} else if !field.isObject {
+			// Warn about missing description for non-object fields
+			log.Printf("Warning: Field '%s' is missing a description", field.name)
+		}
 
-			if field.enum != nil && len(field.enum) > 0 {
-				builder.WriteString(". Enums: ")
-				for i, enumVal := range field.enum {
-					if i > 0 {
-						builder.WriteString(", ")
-					}
-					builder.WriteString("`")
-					builder.WriteString(fmt.Sprintf("%v", enumVal))
-					builder.WriteString("`")
+		if field.enum != nil && len(field.enum) > 0 {
+			builder.WriteString(" Enums: ")
+			for i, enumVal := range field.enum {
+				if i > 0 {
+					builder.WriteString(", ")
 				}
+				builder.WriteString("`")
+				builder.WriteString(fmt.Sprintf("%v", enumVal))
+				builder.WriteString("`")
 			}
 		}
 

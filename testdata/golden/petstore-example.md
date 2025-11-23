@@ -20,31 +20,6 @@ GET [/v3/orders/{orderId}](#getv3ordersorderid) | Get order by ID
 GET [/v3/health](#getv3health) | Health check endpoint
 GET [/v3/metrics](#getv3metrics) | Get API metrics
 
-## Shared Schema Definitions
-
-### ErrorResponse {#errorresponse}
-
-Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
-
-**error** (string)
-
-**code** (integer)
-
-### OrderList {#orderlist}
-
-Used in: GET /v3/orders, GET /v3/users/{userId}/orders
-
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
-
 ## admin
 
 ### POST /v3/pets.delete
@@ -67,8 +42,7 @@ X-Admin-Token | Admin authorization token | true | string
 
 #### Field Definitions
 
-**petId** (string, required)
-- ID of pet to delete
+**petId** (string, required) ID of pet to delete
 
 ### Responses
 
@@ -162,13 +136,11 @@ Returns all orders placed by a specific user
 
 #### Path Parameters
 
-**userId** (string, required)
-- User identifier
+**userId** (string, required) User identifier
 
 #### Query Parameters
 
-**status** (string)
-- Filter by order status
+**status** (string) Filter by order status
 
 ### Responses
 
@@ -212,11 +184,9 @@ Returns a list of all orders in the system
 
 #### Query Parameters
 
-**after** (string)
-- Cursor for pagination - returns orders after this cursor
+**after** (string) Cursor for pagination - returns orders after this cursor
 
-**first** (integer)
-- Number of orders to return (cursor-based pagination)
+**first** (integer) Number of orders to return (cursor-based pagination)
 
 ### Responses
 
@@ -283,8 +253,7 @@ Returns detailed order information
 
 #### Path Parameters
 
-**orderId** (string, required)
-- Order identifier
+**orderId** (string, required) Order identifier
 
 ### Responses
 
@@ -310,7 +279,7 @@ Successful response
 
 **petId** (string)
 
-**status** (string)
+**status** (string) Enums: `placed`, `approved`, `delivered`
 
 **quantity** (integer)
 
@@ -333,14 +302,11 @@ Returns a paginated list of all pets in the store
 
 #### Query Parameters
 
-**after** (string)
-- Cursor for pagination - returns pets after this cursor
+**after** (string) Cursor for pagination - returns pets after this cursor
 
-**first** (integer)
-- Number of pets to return (cursor-based pagination)
+**first** (integer) Number of pets to return (cursor-based pagination)
 
-**tag** (string)
-- Filter by tag
+**tag** (string) Filter by tag
 
 ### Responses
 
@@ -448,8 +414,7 @@ X-Admin-Token | Admin authorization token | true | string
 
 #### Field Definitions
 
-**petId** (string, required)
-- ID of pet to delete
+**petId** (string, required) ID of pet to delete
 
 ### Responses
 
@@ -498,8 +463,7 @@ Returns detailed information about a specific pet
 
 #### Path Parameters
 
-**petId** (string, required)
-- ID of pet to return
+**petId** (string, required) ID of pet to return
 
 ### Responses
 
@@ -524,7 +488,7 @@ Successful response
 
 **name** (string)
 
-**status** (string)
+**status** (string) Enums: `available`, `pending`, `sold`
 
 **tags** (string array)
 
@@ -547,8 +511,7 @@ Returns a list of registered users
 
 #### Query Parameters
 
-**active** (boolean)
-- Filter by active status
+**active** (boolean) Filter by active status
 
 ### Responses
 
@@ -619,8 +582,7 @@ Returns detailed user information
 
 #### Path Parameters
 
-**userId** (string, required)
-- User identifier
+**userId** (string, required) User identifier
 
 ### Responses
 
@@ -664,13 +626,11 @@ Returns all orders placed by a specific user
 
 #### Path Parameters
 
-**userId** (string, required)
-- User identifier
+**userId** (string, required) User identifier
 
 #### Query Parameters
 
-**status** (string)
-- Filter by order status
+**status** (string) Filter by order status
 
 ### Responses
 
@@ -729,7 +689,32 @@ Service is healthy
 
 #### Field Definitions
 
-**status** (string)
+**status** (string) Enums: `healthy`, `degraded`, `down`
 
 **timestamp** (string)
+
+## Shared Schema Definitions
+
+### ErrorResponse
+
+Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
+
+**error** (string)
+
+**code** (integer)
+
+### OrderList
+
+Used in: GET /v3/orders, GET /v3/users/{userId}/orders
+
+**orders** (array of objects)
+
+**cursor** (string)
+
+**Order**
+- `id` (string)
+- `userId` (string)
+- `petId` (string)
+- `status` (string)
+- `quantity` (integer)
 

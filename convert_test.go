@@ -428,7 +428,7 @@ paths:
 			wantMd: []string{
 				"#### Path Parameters",
 				"**id** (string, required)",
-				"- User ID",
+				"User ID",
 			},
 		},
 	} {
@@ -475,7 +475,7 @@ paths:
 			wantMd: []string{
 				"#### Query Parameters",
 				"**limit** (integer)",
-				"- Maximum number of results",
+				"Maximum number of results",
 			},
 		},
 		{
@@ -507,9 +507,9 @@ paths:
 			wantMd: []string{
 				"#### Query Parameters",
 				"**limit** (integer)",
-				"- Maximum number of results",
+				"Maximum number of results",
 				"**offset** (integer)",
-				"- Number of results to skip",
+				"Number of results to skip",
 			},
 		},
 	} {
@@ -766,10 +766,10 @@ components:
 				"Returns a single user by ID",
 				"#### Path Parameters",
 				"**id** (string, required)",
-				"- User ID",
+				"User ID",
 				"#### Query Parameters",
 				"**fields** (string)",
-				"- Fields to include",
+				"Fields to include",
 				"#### Headers",
 				"X-API-Key | API key | true | string",
 				"### Responses",
@@ -798,9 +798,9 @@ components:
 
 func TestConvertDebugMode(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		openapi string
-		opts    conv.ConvertOptions
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
 		wantDebug func(*testing.T, *conv.DebugInfo)
 	}{
 		{
@@ -938,7 +938,7 @@ components:
 				"List all pets",
 				"#### Query Parameters",
 				"**limit** (integer)",
-				"- How many items to return",
+				"How many items to return",
 				"### Responses",
 				"#### 200 Response",
 				"## POST /pets",
@@ -948,7 +948,7 @@ components:
 				"## GET /pets/{petId}",
 				"#### Path Parameters",
 				"**petId** (string, required)",
-				"- The id of the pet",
+				"The id of the pet",
 			},
 		},
 	} {
@@ -1089,10 +1089,10 @@ paths:
 
 func TestConvertSingleTagOmitted(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		openapi string
-		opts    conv.ConvertOptions
-		wantMd  []string
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
 		notWantMd []string
 	}{
 		{
@@ -1143,9 +1143,9 @@ paths:
 
 func TestConvertDefaultAPIsLastPosition(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		openapi string
-		opts    conv.ConvertOptions
+		name       string
+		openapi    string
+		opts       conv.ConvertOptions
 		checkOrder func(*testing.T, string)
 	}{
 		{
@@ -1300,7 +1300,7 @@ components:
 				"Returns a list of users",
 				"#### Query Parameters",
 				"**limit** (integer)",
-				"- Maximum number of users",
+				"Maximum number of users",
 				"#### Headers",
 				"X-API-Key | API key | true | string",
 				"### Responses",
@@ -1311,7 +1311,7 @@ components:
 				"Returns a specific user",
 				"#### Path Parameters",
 				"**id** (string, required)",
-				"- User ID",
+				"User ID",
 				"### Responses",
 				"#### 404 Response",
 			},
@@ -1411,11 +1411,11 @@ components:
 				"```",
 				"#### Field Definitions",
 				"**name** (string, required)",
-				"- User's full name",
+				"User's full name",
 				"**email** (string, required)",
-				"- User's email address",
+				"User's email address",
 				"**age** (integer)",
-				"- User's age",
+				"User's age",
 			},
 		},
 		{
@@ -1453,7 +1453,7 @@ components:
 				"```",
 				"#### Field Definitions",
 				"**name** (string)",
-				"- Updated name",
+				"Updated name",
 			},
 		},
 		{
@@ -1506,9 +1506,9 @@ components:
 
 func TestConvertRequestBodyGETSkipped(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		openapi string
-		opts    conv.ConvertOptions
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
 		notWantMd []string
 	}{
 		{
@@ -1590,7 +1590,7 @@ components:
 				"### Request",
 				"#### Field Definitions",
 				"**items** (string array, required)",
-				"- List of item IDs",
+				"List of item IDs",
 			},
 		},
 	} {
@@ -1653,7 +1653,7 @@ components:
 				"### Request",
 				"#### Field Definitions",
 				"**role** (string, required)",
-				"- User role. Enums: `ADMIN`, `USER`, `GUEST`",
+				"User role Enums: `ADMIN`, `USER`, `GUEST`",
 			},
 		},
 	} {
@@ -1727,7 +1727,7 @@ components:
 			wantMd: []string{
 				"#### Field Definitions",
 				"**name** (string, required)",
-				"- Resource name",
+				"Resource name",
 				"**metadata** (object, required)",
 				"**Metadata**",
 				"- `created` (string, required): Creation timestamp",
@@ -1863,9 +1863,9 @@ components:
 			},
 			wantMd: []string{
 				"**value** (string)",
-				"- Node value",
+				"Node value",
 				"**children** (array of objects)",
-				"- Child nodes",
+				"Child nodes",
 			},
 		},
 	} {
@@ -1934,7 +1934,7 @@ components:
 			},
 			wantMd: []string{
 				"**items** (array of objects)",
-				"- List of items",
+				"List of items",
 				"**Item**",
 				"- `id` (string, required): Item ID",
 				"- `name` (string, required): Item name",
@@ -2101,9 +2101,9 @@ components:
 				"```json",
 				"#### Field Definitions",
 				"**id** (string, required)",
-				"- User identifier",
+				"User identifier",
 				"**name** (string)",
-				"- User name",
+				"User name",
 			},
 		},
 		{
@@ -2426,7 +2426,7 @@ paths:
 			wantMd: []string{
 				"#### Path Parameters",
 				"**id** (string, required)",
-				"- User identifier",
+				"User identifier",
 			},
 		},
 	} {
@@ -2473,7 +2473,7 @@ paths:
 			wantMd: []string{
 				"#### Query Parameters",
 				"**limit** (integer)",
-				"- Maximum number of items to return",
+				"Maximum number of items to return",
 			},
 		},
 	} {
@@ -2572,7 +2572,7 @@ paths:
 			wantMd: []string{
 				"#### Query Parameters",
 				"**status** (string)",
-				"- Filter by user status. Enums: `active`, `inactive`, `pending`",
+				"Filter by user status Enums: `active`, `inactive`, `pending`",
 			},
 		},
 		{
@@ -2602,7 +2602,7 @@ paths:
 			wantMd: []string{
 				"#### Path Parameters",
 				"**type** (string, required)",
-				"- Type of resource. Enums: `user`, `group`, `role`",
+				"Type of resource Enums: `user`, `group`, `role`",
 			},
 		},
 	} {
@@ -2771,8 +2771,8 @@ components:
 			},
 			wantMd: []string{
 				"## Shared Schema Definitions",
-				"### User {#user}",
-				"### Error {#error}",
+				"### User",
+				"### Error",
 				"Used in: GET /users/{id}, POST /users, PUT /users/{id}",
 			},
 		},
@@ -3005,8 +3005,8 @@ components:
 			require.NotEqual(t, -1, sharedIdx, "Shared definitions should be present")
 			require.NotEqual(t, -1, endpointIdx, "Endpoint should be present")
 
-			assert.True(t, tocIdx < sharedIdx, "TOC should come before shared definitions")
-			assert.True(t, sharedIdx < endpointIdx, "Shared definitions should come before endpoints")
+			assert.True(t, tocIdx < endpointIdx, "TOC should come before endpoints")
+			assert.True(t, endpointIdx < sharedIdx, "Endpoints should come before shared definitions")
 		})
 	}
 }
