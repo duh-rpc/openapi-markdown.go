@@ -1149,9 +1149,9 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 
 	// Render top-level fields
 	for _, field := range fields {
-		builder.WriteString("- **")
+		builder.WriteString("- `")
 		builder.WriteString(field.name)
-		builder.WriteString("**")
+		builder.WriteString("`")
 
 		if field.typeStr != "" {
 			builder.WriteString(" (")
