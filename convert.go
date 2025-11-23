@@ -670,10 +670,10 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 			// Get required status
 			required := param.Required != nil && *param.Required
 
-			// Format: **paramName** (type, required) Description
-			builder.WriteString("- **")
+			// Format: `paramName` (type, required) Description
+			builder.WriteString("- `")
 			builder.WriteString(param.Name)
-			builder.WriteString("** (")
+			builder.WriteString("` (")
 			builder.WriteString(typeStr)
 			if required {
 				builder.WriteString(", required")
