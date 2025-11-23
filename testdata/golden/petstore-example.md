@@ -20,6 +20,31 @@ GET [/v3/orders/{orderId}](#getv3ordersorderid) | Get order by ID
 GET [/v3/health](#getv3health) | Health check endpoint
 GET [/v3/metrics](#getv3metrics) | Get API metrics
 
+## Shared Schema Definitions
+
+### ErrorResponse {#errorresponse}
+
+Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
+
+**error** (string)
+
+**code** (integer)
+
+### OrderList {#orderlist}
+
+Used in: GET /v3/orders, GET /v3/users/{userId}/orders
+
+**orders** (array of objects)
+
+**cursor** (string)
+
+**Order**
+- `id` (string)
+- `userId` (string)
+- `petId` (string)
+- `status` (string)
+- `quantity` (integer)
+
 ## admin
 
 ### POST /v3/pets.delete
@@ -168,16 +193,7 @@ Successful response
 
 #### Field Definitions
 
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
+See [OrderList](#orderlist)
 
 #### 404 Response
 
@@ -225,16 +241,7 @@ Successful response
 
 #### Field Definitions
 
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
+See [OrderList](#orderlist)
 
 ### POST /v3/orders
 
@@ -688,16 +695,7 @@ Successful response
 
 #### Field Definitions
 
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
+See [OrderList](#orderlist)
 
 #### 404 Response
 

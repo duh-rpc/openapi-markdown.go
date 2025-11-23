@@ -24,12 +24,15 @@ type ConvertResult struct {
 
 // DebugInfo provides visibility into internal conversion process for testing
 type DebugInfo struct {
-	ParsedPaths     int
-	ExtractedOps    int
-	TagsFound       []string
-	UntaggedOps     int
-	ParameterCounts map[string]int
-	ResponseCounts  map[string]int
+	ParsedPaths       int
+	ExtractedOps      int
+	TagsFound         []string
+	UntaggedOps       int
+	ParameterCounts   map[string]int
+	ResponseCounts    map[string]int
+	RequestBodyCount  int
+	SharedSchemaCount int
+	NestedSchemaDepth map[string]int
 }
 
 // ConvertOptions configures markdown generation
@@ -91,7 +94,7 @@ func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) {
 	}
 
 	if opts.Debug {
-		result.Debug = collectDebugInfo(v3Model.Model, endpoints, tagGroups)
+		result.Debug = collectDebugInfo(v3Model.Model, endpoints, tagGroups, sharedSchemas)
 	}
 
 	return result, nil
@@ -882,10 +885,11 @@ func renderResponses(builder *strings.Builder, op *v3.Operation, examples map[st
 	return nil
 }
 
-func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[string][]endpoint) *DebugInfo {
+func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[string][]endpoint, sharedSchemas map[string]schemaUsage) *DebugInfo {
 	debug := &DebugInfo{
-		ParameterCounts: make(map[string]int),
-		ResponseCounts:  make(map[string]int),
+		ParameterCounts:   make(map[string]int),
+		ResponseCounts:    make(map[string]int),
+		NestedSchemaDepth: make(map[string]int),
 	}
 
 	if model.Paths != nil && model.Paths.PathItems != nil {
@@ -906,6 +910,10 @@ func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[str
 			debug.UntaggedOps++
 		}
 
+		if e.operation != nil && e.operation.RequestBody != nil {
+			debug.RequestBodyCount++
+		}
+
 		if e.operation != nil && e.operation.Parameters != nil {
 			for _, param := range e.operation.Parameters {
 				if param != nil {
@@ -920,6 +928,8 @@ func collectDebugInfo(model v3.Document, endpoints []endpoint, tagGroups map[str
 			}
 		}
 	}
+
+	debug.SharedSchemaCount = len(sharedSchemas)
 
 	return debug
 }

@@ -20,13 +20,38 @@ GET [/v3/orders/{orderId}](#getv3ordersorderid) | Get order by ID
 GET [/v3/health](#getv3health) | Health check endpoint
 GET [/v3/metrics](#getv3metrics) | Get API metrics
 
+## Shared Schema Definitions
+
+### ErrorResponse {#errorresponse}
+
+Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
+
+**error** (string)
+
+**code** (integer)
+
+### OrderList {#orderlist}
+
+Used in: GET /v3/orders, GET /v3/users/{userId}/orders
+
+**orders** (array of objects)
+
+**cursor** (string)
+
+**Order**
+- `id` (string)
+- `userId` (string)
+- `petId` (string)
+- `status` (string)
+- `quantity` (integer)
+
 ## admin
 
 ### POST /v3/pets.delete
 
 Removes a pet from the store inventory
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -90,7 +115,7 @@ Pet not found
 
 Returns usage metrics and statistics
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -137,15 +162,13 @@ Returns all orders placed by a specific user
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+**userId** (string, required)
+- User identifier
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-status | Filter by order status | false | string
+**status** (string)
+- Filter by order status
 
 ### Responses
 
@@ -170,16 +193,7 @@ Successful response
 
 #### Field Definitions
 
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
+See [OrderList](#orderlist)
 
 #### 404 Response
 
@@ -198,10 +212,11 @@ Returns a list of all orders in the system
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-after | Cursor for pagination - returns orders after this cursor | false | string
-first | Number of orders to return (cursor-based pagination) | false | integer
+**after** (string)
+- Cursor for pagination - returns orders after this cursor
+
+**first** (integer)
+- Number of orders to return (cursor-based pagination)
 
 ### Responses
 
@@ -226,16 +241,7 @@ Successful response
 
 #### Field Definitions
 
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
+See [OrderList](#orderlist)
 
 ### POST /v3/orders
 
@@ -277,9 +283,8 @@ Returns detailed order information
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-orderId | Order identifier | true | string
+**orderId** (string, required)
+- Order identifier
 
 ### Responses
 
@@ -328,11 +333,14 @@ Returns a paginated list of all pets in the store
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-after | Cursor for pagination - returns pets after this cursor | false | string
-first | Number of pets to return (cursor-based pagination) | false | integer
-tag | Filter by tag | false | string
+**after** (string)
+- Cursor for pagination - returns pets after this cursor
+
+**first** (integer)
+- Number of pets to return (cursor-based pagination)
+
+**tag** (string)
+- Filter by tag
 
 ### Responses
 
@@ -384,7 +392,7 @@ Invalid request parameters
 
 Adds a new pet to the store inventory
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -424,7 +432,7 @@ Invalid pet data
 
 Removes a pet from the store inventory
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -490,9 +498,8 @@ Returns detailed information about a specific pet
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-petId | ID of pet to return | true | string
+**petId** (string, required)
+- ID of pet to return
 
 ### Responses
 
@@ -540,9 +547,8 @@ Returns a list of registered users
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-active | Filter by active status | false | boolean
+**active** (boolean)
+- Filter by active status
 
 ### Responses
 
@@ -613,9 +619,8 @@ Returns detailed user information
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+**userId** (string, required)
+- User identifier
 
 ### Responses
 
@@ -659,15 +664,13 @@ Returns all orders placed by a specific user
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+**userId** (string, required)
+- User identifier
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-status | Filter by order status | false | string
+**status** (string)
+- Filter by order status
 
 ### Responses
 
@@ -692,16 +695,7 @@ Successful response
 
 #### Field Definitions
 
-**orders** (array of objects)
-
-**cursor** (string)
-
-**Order**
-- `id` (string)
-- `userId` (string)
-- `petId` (string)
-- `status` (string)
-- `quantity` (integer)
+See [OrderList](#orderlist)
 
 #### 404 Response
 
