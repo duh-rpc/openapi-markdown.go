@@ -341,9 +341,9 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 
 					// Render top-level fields
 					for _, field := range fields {
-						builder.WriteString("- **")
+						builder.WriteString("- `")
 						builder.WriteString(field.name)
-						builder.WriteString("**")
+						builder.WriteString("`")
 
 						if field.typeStr != "" {
 							builder.WriteString(" (")
