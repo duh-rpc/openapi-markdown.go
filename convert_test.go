@@ -427,9 +427,8 @@ paths:
 			},
 			wantMd: []string{
 				"#### Path Parameters",
-				"Name | Description | Required | Type",
-				"-----|-------------|----------|-----",
-				"id | User ID | true | string",
+				"**id** (string, required)",
+				"- User ID",
 			},
 		},
 	} {
@@ -475,9 +474,8 @@ paths:
 			},
 			wantMd: []string{
 				"#### Query Parameters",
-				"Name | Description | Required | Type",
-				"-----|-------------|----------|-----",
-				"limit | Maximum number of results | false | integer",
+				"**limit** (integer)",
+				"- Maximum number of results",
 			},
 		},
 		{
@@ -508,8 +506,10 @@ paths:
 			},
 			wantMd: []string{
 				"#### Query Parameters",
-				"limit | Maximum number of results | false | integer",
-				"offset | Number of results to skip | false | integer",
+				"**limit** (integer)",
+				"- Maximum number of results",
+				"**offset** (integer)",
+				"- Number of results to skip",
 			},
 		},
 	} {
@@ -554,7 +554,7 @@ paths:
 				Title: "Test API",
 			},
 			wantMd: []string{
-				"#### Header Parameters",
+				"#### Headers",
 				"Name | Description | Required | Type",
 				"-----|-------------|----------|-----",
 				"X-API-Key | API authentication key | true | string",
@@ -587,7 +587,7 @@ paths:
 				Title: "Test API",
 			},
 			wantMd: []string{
-				"#### Header Parameters",
+				"#### Headers",
 				"X-API-Key | API authentication key | true | string",
 				"X-Request-ID | Request tracking ID | false | string",
 			},
@@ -765,10 +765,12 @@ components:
 				"## GET /users/{id}",
 				"Returns a single user by ID",
 				"#### Path Parameters",
-				"id | User ID | true | string",
+				"**id** (string, required)",
+				"- User ID",
 				"#### Query Parameters",
-				"fields | Fields to include | false | string",
-				"#### Header Parameters",
+				"**fields** (string)",
+				"- Fields to include",
+				"#### Headers",
 				"X-API-Key | API key | true | string",
 				"### Responses",
 				"#### 200 Response",
@@ -935,7 +937,8 @@ components:
 				"## GET /pets",
 				"List all pets",
 				"#### Query Parameters",
-				"limit | How many items to return | false | integer",
+				"**limit** (integer)",
+				"- How many items to return",
 				"### Responses",
 				"#### 200 Response",
 				"## POST /pets",
@@ -944,7 +947,8 @@ components:
 				"#### 201 Response",
 				"## GET /pets/{petId}",
 				"#### Path Parameters",
-				"petId | The id of the pet | true | string",
+				"**petId** (string, required)",
+				"- The id of the pet",
 			},
 		},
 	} {
@@ -1295,8 +1299,9 @@ components:
 				"### GET /users",
 				"Returns a list of users",
 				"#### Query Parameters",
-				"limit | Maximum number of users | false | integer",
-				"#### Header Parameters",
+				"**limit** (integer)",
+				"- Maximum number of users",
+				"#### Headers",
 				"X-API-Key | API key | true | string",
 				"### Responses",
 				"#### 200 Response",
@@ -1305,7 +1310,8 @@ components:
 				"### GET /users/{id}",
 				"Returns a specific user",
 				"#### Path Parameters",
-				"id | User ID | true | string",
+				"**id** (string, required)",
+				"- User ID",
 				"### Responses",
 				"#### 404 Response",
 			},
@@ -2374,6 +2380,281 @@ components:
 				"#### Field Definitions (applies to 200, 201 responses)",
 				"**id** (string)",
 				"**name** (string)",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertPathParametersFieldDef(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "path parameter with field definitions format",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User identifier
+          schema:
+            type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Path Parameters",
+				"**id** (string, required)",
+				"- User identifier",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertQueryParametersFieldDef(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "query parameter with field definitions format",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of items to return
+          schema:
+            type: integer`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Query Parameters",
+				"**limit** (integer)",
+				"- Maximum number of items to return",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertHeadersTableFormat(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "headers remain in table format",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: X-API-Key
+          in: header
+          required: true
+          description: API authentication key
+          schema:
+            type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Headers",
+				"Name | Description | Required | Type",
+				"-----|-------------|----------|-----",
+				"X-API-Key | API authentication key | true | string",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertParameterWithEnums(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "query parameter with enum values",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by user status
+          schema:
+            type: string
+            enum:
+              - active
+              - inactive
+              - pending`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Query Parameters",
+				"**status** (string)",
+				"- Filter by user status. Enums: `active`, `inactive`, `pending`",
+			},
+		},
+		{
+			name: "path parameter with enum values",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /resource/{type}:
+    get:
+      summary: Get resource
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: Type of resource
+          schema:
+            type: string
+            enum:
+              - user
+              - group
+              - role`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Path Parameters",
+				"**type** (string, required)",
+				"- Type of resource. Enums: `user`, `group`, `role`",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+		})
+	}
+}
+
+func TestConvertParameterRequired(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		openapi string
+		opts    conv.ConvertOptions
+		wantMd  []string
+	}{
+		{
+			name: "required vs optional parameters",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+        - name: expand
+          in: query
+          required: false
+          description: Expand related objects
+          schema:
+            type: boolean`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**id** (string, required)",
+				"**expand** (boolean)",
 			},
 		},
 	} {

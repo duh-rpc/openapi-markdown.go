@@ -26,7 +26,7 @@ GET [/v3/metrics](#getv3metrics) | Get API metrics
 
 Removes a pet from the store inventory
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -90,7 +90,7 @@ Pet not found
 
 Returns usage metrics and statistics
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -137,15 +137,13 @@ Returns all orders placed by a specific user
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+**userId** (string, required)
+- User identifier
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-status | Filter by order status | false | string
+**status** (string)
+- Filter by order status
 
 ### Responses
 
@@ -198,10 +196,11 @@ Returns a list of all orders in the system
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-after | Cursor for pagination - returns orders after this cursor | false | string
-first | Number of orders to return (cursor-based pagination) | false | integer
+**after** (string)
+- Cursor for pagination - returns orders after this cursor
+
+**first** (integer)
+- Number of orders to return (cursor-based pagination)
 
 ### Responses
 
@@ -277,9 +276,8 @@ Returns detailed order information
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-orderId | Order identifier | true | string
+**orderId** (string, required)
+- Order identifier
 
 ### Responses
 
@@ -328,11 +326,14 @@ Returns a paginated list of all pets in the store
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-after | Cursor for pagination - returns pets after this cursor | false | string
-first | Number of pets to return (cursor-based pagination) | false | integer
-tag | Filter by tag | false | string
+**after** (string)
+- Cursor for pagination - returns pets after this cursor
+
+**first** (integer)
+- Number of pets to return (cursor-based pagination)
+
+**tag** (string)
+- Filter by tag
 
 ### Responses
 
@@ -384,7 +385,7 @@ Invalid request parameters
 
 Adds a new pet to the store inventory
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -424,7 +425,7 @@ Invalid pet data
 
 Removes a pet from the store inventory
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
@@ -490,9 +491,8 @@ Returns detailed information about a specific pet
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-petId | ID of pet to return | true | string
+**petId** (string, required)
+- ID of pet to return
 
 ### Responses
 
@@ -540,9 +540,8 @@ Returns a list of registered users
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-active | Filter by active status | false | boolean
+**active** (boolean)
+- Filter by active status
 
 ### Responses
 
@@ -613,9 +612,8 @@ Returns detailed user information
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+**userId** (string, required)
+- User identifier
 
 ### Responses
 
@@ -659,15 +657,13 @@ Returns all orders placed by a specific user
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+**userId** (string, required)
+- User identifier
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-status | Filter by order status | false | string
+**status** (string)
+- Filter by order status
 
 ### Responses
 

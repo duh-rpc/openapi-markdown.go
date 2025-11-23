@@ -322,9 +322,9 @@ func renderParameters(builder *strings.Builder, op *v3.Operation) {
 		}
 	}
 
-	renderParamTable(builder, "Path", pathParams)
-	renderParamTable(builder, "Query", queryParams)
-	renderParamTable(builder, "Header", headerParams)
+	renderPathParametersFieldDef(builder, pathParams)
+	renderQueryParametersFieldDef(builder, queryParams)
+	renderHeaders(builder, headerParams)
 }
 
 func renderParamTable(builder *strings.Builder, paramType string, params []v3.Parameter) {
@@ -335,6 +335,154 @@ func renderParamTable(builder *strings.Builder, paramType string, params []v3.Pa
 	builder.WriteString("#### ")
 	builder.WriteString(paramType)
 	builder.WriteString(" Parameters\n\n")
+	builder.WriteString("Name | Description | Required | Type\n")
+	builder.WriteString("-----|-------------|----------|-----\n")
+
+	for _, param := range params {
+		builder.WriteString(param.Name)
+		builder.WriteString(" | ")
+
+		if param.Description != "" {
+			builder.WriteString(param.Description)
+		}
+		builder.WriteString(" | ")
+
+		if param.Required != nil && *param.Required {
+			builder.WriteString("true")
+		} else {
+			builder.WriteString("false")
+		}
+		builder.WriteString(" | ")
+
+		if param.Schema != nil && param.Schema.Schema() != nil {
+			schema := param.Schema.Schema()
+			if len(schema.Type) > 0 {
+				builder.WriteString(schema.Type[0])
+			}
+		}
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("\n")
+}
+
+// renderPathParametersFieldDef renders path parameters in field definitions format
+func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Parameter) {
+	if len(params) == 0 {
+		return
+	}
+
+	builder.WriteString("#### Path Parameters\n\n")
+
+	for _, param := range params {
+		if param.Schema != nil && param.Schema.Schema() != nil {
+			schema := param.Schema.Schema()
+
+			// Get type
+			typeStr := ""
+			if len(schema.Type) > 0 {
+				typeStr = schema.Type[0]
+			}
+
+			// Get required status
+			required := param.Required != nil && *param.Required
+
+			// Format: **paramName** (type, required)
+			builder.WriteString("**")
+			builder.WriteString(param.Name)
+			builder.WriteString("** (")
+			builder.WriteString(typeStr)
+			if required {
+				builder.WriteString(", required")
+			}
+			builder.WriteString(")\n")
+
+			// Description as bullet
+			if param.Description != "" {
+				builder.WriteString("- ")
+				builder.WriteString(param.Description)
+
+				// Add enums if present
+				if schema.Enum != nil && len(schema.Enum) > 0 {
+					builder.WriteString(". Enums: ")
+					for i, enumVal := range schema.Enum {
+						if i > 0 {
+							builder.WriteString(", ")
+						}
+						builder.WriteString("`")
+						builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+						builder.WriteString("`")
+					}
+				}
+				builder.WriteString("\n")
+			}
+			builder.WriteString("\n")
+		}
+	}
+}
+
+// renderQueryParametersFieldDef renders query parameters in field definitions format
+func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Parameter) {
+	if len(params) == 0 {
+		return
+	}
+
+	builder.WriteString("#### Query Parameters\n\n")
+
+	for _, param := range params {
+		if param.Schema != nil && param.Schema.Schema() != nil {
+			schema := param.Schema.Schema()
+
+			// Get type
+			typeStr := ""
+			if len(schema.Type) > 0 {
+				typeStr = schema.Type[0]
+			}
+
+			// Get required status
+			required := param.Required != nil && *param.Required
+
+			// Format: **paramName** (type, required)
+			builder.WriteString("**")
+			builder.WriteString(param.Name)
+			builder.WriteString("** (")
+			builder.WriteString(typeStr)
+			if required {
+				builder.WriteString(", required")
+			}
+			builder.WriteString(")\n")
+
+			// Description as bullet
+			if param.Description != "" {
+				builder.WriteString("- ")
+				builder.WriteString(param.Description)
+
+				// Add enums if present
+				if schema.Enum != nil && len(schema.Enum) > 0 {
+					builder.WriteString(". Enums: ")
+					for i, enumVal := range schema.Enum {
+						if i > 0 {
+							builder.WriteString(", ")
+						}
+						builder.WriteString("`")
+						builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+						builder.WriteString("`")
+					}
+				}
+				builder.WriteString("\n")
+			}
+			builder.WriteString("\n")
+		}
+	}
+}
+
+// renderHeaders renders header parameters in table format
+func renderHeaders(builder *strings.Builder, params []v3.Parameter) {
+	if len(params) == 0 {
+		return
+	}
+
+	builder.WriteString("#### Headers\n\n")
 	builder.WriteString("Name | Description | Required | Type\n")
 	builder.WriteString("-----|-------------|----------|-----\n")
 
