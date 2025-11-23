@@ -341,7 +341,7 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 
 					// Render top-level fields
 					for _, field := range fields {
-						builder.WriteString("**")
+						builder.WriteString("- **")
 						builder.WriteString(field.name)
 						builder.WriteString("**")
 
@@ -385,8 +385,10 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 							}
 						}
 
-						builder.WriteString("\n\n")
+						builder.WriteString("\n")
 					}
+
+					builder.WriteString("\n")
 
 					// Render nested schema definitions
 					for _, nestedDef := range nestedDefs {
@@ -612,7 +614,7 @@ func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Paramete
 			required := param.Required != nil && *param.Required
 
 			// Format: **paramName** (type, required) Description
-			builder.WriteString("**")
+			builder.WriteString("- **")
 			builder.WriteString(param.Name)
 			builder.WriteString("** (")
 			builder.WriteString(typeStr)
@@ -640,8 +642,10 @@ func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Paramete
 				}
 			}
 
-			builder.WriteString("\n\n")
+			builder.WriteString("\n")
 		}
+
+		builder.WriteString("\n")
 	}
 }
 
@@ -667,7 +671,7 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 			required := param.Required != nil && *param.Required
 
 			// Format: **paramName** (type, required) Description
-			builder.WriteString("**")
+			builder.WriteString("- **")
 			builder.WriteString(param.Name)
 			builder.WriteString("** (")
 			builder.WriteString(typeStr)
@@ -695,8 +699,10 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 				}
 			}
 
-			builder.WriteString("\n\n")
+			builder.WriteString("\n")
 		}
+
+		builder.WriteString("\n")
 	}
 }
 
@@ -1143,7 +1149,7 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 
 	// Render top-level fields
 	for _, field := range fields {
-		builder.WriteString("**")
+		builder.WriteString("- **")
 		builder.WriteString(field.name)
 		builder.WriteString("**")
 
@@ -1187,8 +1193,10 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 			}
 		}
 
-		builder.WriteString("\n\n")
+		builder.WriteString("\n")
 	}
+
+	builder.WriteString("\n")
 
 	// Render nested schema definitions
 	for _, nestedDef := range nestedDefs {
