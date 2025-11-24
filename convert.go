@@ -125,16 +125,14 @@ type schemaField struct {
 
 // schemaDefinition represents a complete schema with all fields
 type schemaDefinition struct {
-	name        string
-	description string
-	fields      []schemaField
+	name   string
+	fields []schemaField
 }
 
 // schemaUsage tracks where schemas are used across endpoints
 type schemaUsage struct {
 	schemaName string
 	endpoints  []string // e.g., ["POST /users", "PUT /users/{id}"]
-	contexts   []string // e.g., ["request", "response:200"]
 }
 
 func extractEndpoints(model v3.Document) []endpoint {
@@ -373,14 +371,14 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 							log.Printf("Warning: Field '%s' in schema '%s' is missing a description", field.name, schemaName)
 						}
 
-						if field.enum != nil && len(field.enum) > 0 {
+						if len(field.enum) > 0 {
 							builder.WriteString(" Enums: ")
 							for i, enumVal := range field.enum {
 								if i > 0 {
 									builder.WriteString(", ")
 								}
 								builder.WriteString("`")
-								builder.WriteString(fmt.Sprintf("%v", enumVal))
+								fmt.Fprintf(builder, "%v", enumVal)
 								builder.WriteString("`")
 							}
 						}
@@ -553,45 +551,6 @@ func renderParameters(builder *strings.Builder, op *v3.Operation) {
 	renderHeaders(builder, headerParams)
 }
 
-func renderParamTable(builder *strings.Builder, paramType string, params []v3.Parameter) {
-	if len(params) == 0 {
-		return
-	}
-
-	builder.WriteString("#### ")
-	builder.WriteString(paramType)
-	builder.WriteString(" Parameters\n\n")
-	builder.WriteString("Name | Description | Required | Type\n")
-	builder.WriteString("-----|-------------|----------|-----\n")
-
-	for _, param := range params {
-		builder.WriteString(param.Name)
-		builder.WriteString(" | ")
-
-		if param.Description != "" {
-			builder.WriteString(param.Description)
-		}
-		builder.WriteString(" | ")
-
-		if param.Required != nil && *param.Required {
-			builder.WriteString("true")
-		} else {
-			builder.WriteString("false")
-		}
-		builder.WriteString(" | ")
-
-		if param.Schema != nil && param.Schema.Schema() != nil {
-			schema := param.Schema.Schema()
-			if len(schema.Type) > 0 {
-				builder.WriteString(schema.Type[0])
-			}
-		}
-		builder.WriteString("\n")
-	}
-
-	builder.WriteString("\n")
-}
-
 // renderPathParametersFieldDef renders path parameters in field definitions format
 func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Parameter) {
 	if len(params) == 0 {
@@ -630,14 +589,14 @@ func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Paramete
 			}
 
 			// Add enums if present
-			if schema.Enum != nil && len(schema.Enum) > 0 {
+			if len(schema.Enum) > 0 {
 				builder.WriteString(" Enums: ")
 				for i, enumVal := range schema.Enum {
 					if i > 0 {
 						builder.WriteString(", ")
 					}
 					builder.WriteString("`")
-					builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+					fmt.Fprintf(builder, "%v", enumVal.Value)
 					builder.WriteString("`")
 				}
 			}
@@ -687,14 +646,14 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 			}
 
 			// Add enums if present
-			if schema.Enum != nil && len(schema.Enum) > 0 {
+			if len(schema.Enum) > 0 {
 				builder.WriteString(" Enums: ")
 				for i, enumVal := range schema.Enum {
 					if i > 0 {
 						builder.WriteString(", ")
 					}
 					builder.WriteString("`")
-					builder.WriteString(fmt.Sprintf("%v", enumVal.Value))
+					fmt.Fprintf(builder, "%v", enumVal.Value)
 					builder.WriteString("`")
 				}
 			}
@@ -1181,14 +1140,14 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 			log.Printf("Warning: Field '%s' is missing a description", field.name)
 		}
 
-		if field.enum != nil && len(field.enum) > 0 {
+		if len(field.enum) > 0 {
 			builder.WriteString(" Enums: ")
 			for i, enumVal := range field.enum {
 				if i > 0 {
 					builder.WriteString(", ")
 				}
 				builder.WriteString("`")
-				builder.WriteString(fmt.Sprintf("%v", enumVal))
+				fmt.Fprintf(builder, "%v", enumVal)
 				builder.WriteString("`")
 			}
 		}
@@ -1315,7 +1274,7 @@ func extractSchemaFieldsFromProperties(schema *base.Schema, visited map[string]i
 			description: prop.Description,
 		}
 
-		if prop.Enum != nil && len(prop.Enum) > 0 {
+		if len(prop.Enum) > 0 {
 			for _, enumVal := range prop.Enum {
 				field.enum = append(field.enum, enumVal.Value)
 			}
@@ -1473,7 +1432,7 @@ func extractSchemaFields(schemaProxy *base.SchemaProxy, examples map[string]json
 			description: prop.Description,
 		}
 
-		if prop.Enum != nil && len(prop.Enum) > 0 {
+		if len(prop.Enum) > 0 {
 			for _, enumVal := range prop.Enum {
 				field.enum = append(field.enum, enumVal.Value)
 			}
@@ -1583,14 +1542,14 @@ func renderSchemaDefinition(builder *strings.Builder, def schemaDefinition) erro
 			builder.WriteString(": ")
 			builder.WriteString(field.description)
 
-			if field.enum != nil && len(field.enum) > 0 {
+			if len(field.enum) > 0 {
 				builder.WriteString(". Enums: ")
 				for i, enumVal := range field.enum {
 					if i > 0 {
 						builder.WriteString(", ")
 					}
 					builder.WriteString("`")
-					builder.WriteString(fmt.Sprintf("%v", enumVal))
+					fmt.Fprintf(builder, "%v", enumVal)
 					builder.WriteString("`")
 				}
 			}
