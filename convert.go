@@ -346,7 +346,7 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 						builder.WriteString("`")
 
 						if field.typeStr != "" {
-							builder.WriteString(" (")
+							builder.WriteString(" *(")
 
 							if field.isArray && !field.isObject {
 								builder.WriteString(field.typeStr)
@@ -362,7 +362,7 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 							if field.required {
 								builder.WriteString(", required")
 							}
-							builder.WriteString(")")
+							builder.WriteString(")*")
 						}
 
 						if field.description != "" {
@@ -613,15 +613,15 @@ func renderPathParametersFieldDef(builder *strings.Builder, params []v3.Paramete
 			// Get required status
 			required := param.Required != nil && *param.Required
 
-			// Format: `paramName` (type, required) Description
+			// Format: `paramName` *(type, required)* Description
 			builder.WriteString("- `")
 			builder.WriteString(param.Name)
-			builder.WriteString("` (")
+			builder.WriteString("` *(")
 			builder.WriteString(typeStr)
 			if required {
 				builder.WriteString(", required")
 			}
-			builder.WriteString(")")
+			builder.WriteString(")*")
 
 			// Description inline
 			if param.Description != "" {
@@ -670,15 +670,15 @@ func renderQueryParametersFieldDef(builder *strings.Builder, params []v3.Paramet
 			// Get required status
 			required := param.Required != nil && *param.Required
 
-			// Format: `paramName` (type, required) Description
+			// Format: `paramName` *(type, required)* Description
 			builder.WriteString("- `")
 			builder.WriteString(param.Name)
-			builder.WriteString("` (")
+			builder.WriteString("` *(")
 			builder.WriteString(typeStr)
 			if required {
 				builder.WriteString(", required")
 			}
-			builder.WriteString(")")
+			builder.WriteString(")*")
 
 			// Description inline
 			if param.Description != "" {
@@ -1154,7 +1154,7 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 		builder.WriteString("`")
 
 		if field.typeStr != "" {
-			builder.WriteString(" (")
+			builder.WriteString(" *(")
 
 			if field.isArray && !field.isObject {
 				builder.WriteString(field.typeStr)
@@ -1170,7 +1170,7 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 			if field.required {
 				builder.WriteString(", required")
 			}
-			builder.WriteString(")")
+			builder.WriteString(")*")
 		}
 
 		if field.description != "" {
@@ -1562,7 +1562,7 @@ func renderSchemaDefinition(builder *strings.Builder, def schemaDefinition) erro
 		builder.WriteString("`")
 
 		if field.typeStr != "" {
-			builder.WriteString(" (")
+			builder.WriteString(" *(")
 
 			if field.isArray && !field.isObject {
 				builder.WriteString(field.typeStr)
@@ -1576,7 +1576,7 @@ func renderSchemaDefinition(builder *strings.Builder, def schemaDefinition) erro
 			if field.required {
 				builder.WriteString(", required")
 			}
-			builder.WriteString(")")
+			builder.WriteString(")*")
 		}
 
 		if field.description != "" {

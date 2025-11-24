@@ -42,7 +42,7 @@ X-Admin-Token | Admin authorization token required for this operation | true | s
 
 #### Field Definitions
 
-- `petId` (string, required) Unique identifier of the pet to delete from inventory
+- `petId` *(string, required)* Unique identifier of the pet to delete from inventory
 
 ### Responses
 
@@ -61,7 +61,7 @@ Pet deleted successfully
 
 #### Field Definitions
 
-- `pet` (object) Information about the deleted pet
+- `pet` *(object)* Information about the deleted pet
 
 #### 403 Response
 
@@ -111,9 +111,9 @@ Metrics data retrieved successfully
 
 #### Field Definitions
 
-- `requestsTotal` (integer) Total number of API requests processed since service start
-- `requestsPerSecond` (number) Current request throughput measured in requests per second
-- `uptime` (integer) Server uptime in seconds since last restart
+- `requestsTotal` *(integer)* Total number of API requests processed since service start
+- `requestsPerSecond` *(number)* Current request throughput measured in requests per second
+- `uptime` *(integer)* Server uptime in seconds since last restart
 
 #### 403 Response
 
@@ -134,11 +134,11 @@ Returns all orders placed by a specific user with optional filtering by order st
 
 #### Path Parameters
 
-- `userId` (string, required) Unique identifier of the user whose orders to retrieve
+- `userId` *(string, required)* Unique identifier of the user whose orders to retrieve
 
 #### Query Parameters
 
-- `status` (string) Filter orders by their current status (placed, approved, or delivered)
+- `status` *(string)* Filter orders by their current status (placed, approved, or delivered)
 
 ### Responses
 
@@ -182,9 +182,9 @@ Returns a paginated list of all orders in the system with cursor-based paginatio
 
 #### Query Parameters
 
-- `after` (string) Cursor for pagination - returns orders after this cursor
+- `after` *(string)* Cursor for pagination - returns orders after this cursor
 
-- `first` (integer) Number of orders to return (cursor-based pagination)
+- `first` *(integer)* Number of orders to return (cursor-based pagination)
 
 ### Responses
 
@@ -230,8 +230,8 @@ Order created successfully
 
 #### Field Definitions
 
-- `id` (string) Unique identifier assigned to the newly created order
-- `message` (string) Confirmation message about the order placement
+- `id` *(string)* Unique identifier assigned to the newly created order
+- `message` *(string)* Confirmation message about the order placement
 
 #### 400 Response
 
@@ -250,7 +250,7 @@ Returns detailed information about a specific order including items, status, and
 
 #### Path Parameters
 
-- `orderId` (string, required) Unique identifier of the order to retrieve
+- `orderId` *(string, required)* Unique identifier of the order to retrieve
 
 ### Responses
 
@@ -270,11 +270,11 @@ Successful response with order details
 
 #### Field Definitions
 
-- `id` (string) Unique identifier for the order
-- `userId` (string) Identifier of the user who placed the order
-- `petId` (string) Identifier of the pet being ordered
-- `status` (string) Current status of the order in the fulfillment process Enums: `placed`, `approved`, `delivered`
-- `quantity` (integer) Number of pets being ordered
+- `id` *(string)* Unique identifier for the order
+- `userId` *(string)* Identifier of the user who placed the order
+- `petId` *(string)* Identifier of the pet being ordered
+- `status` *(string)* Current status of the order in the fulfillment process Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)* Number of pets being ordered
 
 #### 404 Response
 
@@ -295,11 +295,11 @@ Returns a paginated list of all pets in the store with support for filtering by 
 
 #### Query Parameters
 
-- `after` (string) Cursor for pagination - returns pets after this cursor
+- `after` *(string)* Cursor for pagination - returns pets after this cursor
 
-- `first` (integer) Number of pets to return (cursor-based pagination)
+- `first` *(integer)* Number of pets to return (cursor-based pagination)
 
-- `tag` (string) Filter by tag
+- `tag` *(string)* Filter by tag
 
 ### Responses
 
@@ -326,14 +326,14 @@ Successful response with pet list
 
 #### Field Definitions
 
-- `pets` (array of objects) Array of pet objects matching the query criteria
-- `cursor` (string) Pagination cursor for fetching the next page of results
+- `pets` *(array of objects)* Array of pet objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
 
 **Pet**
-- `id` (string): Unique identifier for the pet
-- `name` (string): Name of the pet
-- `status` (string): Current availability status of the pet in the store. Enums: `available`, `pending`, `sold`
-- `tags` (string array): Tags for categorizing and filtering pets (e.g., species, characteristics)
+- `id` *(string)*: Unique identifier for the pet
+- `name` *(string)*: Name of the pet
+- `status` *(string)*: Current availability status of the pet in the store. Enums: `available`, `pending`, `sold`
+- `tags` *(string array)*: Tags for categorizing and filtering pets (e.g., species, characteristics)
 
 #### 400 Response
 
@@ -371,8 +371,8 @@ Pet created successfully
 
 #### Field Definitions
 
-- `id` (string) Unique identifier assigned to the newly created pet
-- `message` (string) Confirmation message about the pet creation
+- `id` *(string)* Unique identifier assigned to the newly created pet
+- `message` *(string)* Confirmation message about the pet creation
 
 #### 400 Response
 
@@ -405,7 +405,7 @@ X-Admin-Token | Admin authorization token required for this operation | true | s
 
 #### Field Definitions
 
-- `petId` (string, required) Unique identifier of the pet to delete from inventory
+- `petId` *(string, required)* Unique identifier of the pet to delete from inventory
 
 ### Responses
 
@@ -424,7 +424,7 @@ Pet deleted successfully
 
 #### Field Definitions
 
-- `pet` (object) Information about the deleted pet
+- `pet` *(object)* Information about the deleted pet
 
 #### 403 Response
 
@@ -454,7 +454,7 @@ Returns detailed information about a specific pet including its status, tags, an
 
 #### Path Parameters
 
-- `petId` (string, required) Unique identifier of the pet to retrieve
+- `petId` *(string, required)* Unique identifier of the pet to retrieve
 
 ### Responses
 
@@ -475,10 +475,10 @@ Successful response with pet details
 
 #### Field Definitions
 
-- `id` (string) Unique identifier for the pet
-- `name` (string) Name of the pet
-- `status` (string) Current availability status of the pet in the store Enums: `available`, `pending`, `sold`
-- `tags` (string array) Tags for categorizing and filtering pets (e.g., species, characteristics)
+- `id` *(string)* Unique identifier for the pet
+- `name` *(string)* Name of the pet
+- `status` *(string)* Current availability status of the pet in the store Enums: `available`, `pending`, `sold`
+- `tags` *(string array)* Tags for categorizing and filtering pets (e.g., species, characteristics)
 
 #### 404 Response
 
@@ -499,7 +499,7 @@ Returns a list of registered users with optional filtering by active status
 
 #### Query Parameters
 
-- `active` (boolean) Filter users by their active status (true for active users, false for inactive)
+- `active` *(boolean)* Filter users by their active status (true for active users, false for inactive)
 
 ### Responses
 
@@ -522,13 +522,13 @@ Successful response with user list
 
 #### Field Definitions
 
-- `users` (array of objects) Array of user objects matching the query criteria
+- `users` *(array of objects)* Array of user objects matching the query criteria
 
 **User**
-- `id` (string): Unique identifier for the user account
-- `username` (string): User's chosen username for login and display
-- `email` (string): User's email address for communication and account recovery
-- `active` (boolean): Indicates whether the user account is currently active
+- `id` *(string)*: Unique identifier for the user account
+- `username` *(string)*: User's chosen username for login and display
+- `email` *(string)*: User's email address for communication and account recovery
+- `active` *(boolean)*: Indicates whether the user account is currently active
 
 ### POST /v3/users
 
@@ -549,8 +549,8 @@ User created successfully
 
 #### Field Definitions
 
-- `id` (string) Unique identifier assigned to the newly created user
-- `message` (string) Confirmation message about the user registration
+- `id` *(string)* Unique identifier assigned to the newly created user
+- `message` *(string)* Confirmation message about the user registration
 
 #### 400 Response
 
@@ -569,7 +569,7 @@ Returns detailed information about a specific user including their profile and a
 
 #### Path Parameters
 
-- `userId` (string, required) Unique identifier of the user to retrieve
+- `userId` *(string, required)* Unique identifier of the user to retrieve
 
 ### Responses
 
@@ -588,10 +588,10 @@ Successful response with user details
 
 #### Field Definitions
 
-- `id` (string) Unique identifier for the user account
-- `username` (string) User's chosen username for login and display
-- `email` (string) User's email address for communication and account recovery
-- `active` (boolean) Indicates whether the user account is currently active
+- `id` *(string)* Unique identifier for the user account
+- `username` *(string)* User's chosen username for login and display
+- `email` *(string)* User's email address for communication and account recovery
+- `active` *(boolean)* Indicates whether the user account is currently active
 
 #### 404 Response
 
@@ -610,11 +610,11 @@ Returns all orders placed by a specific user with optional filtering by order st
 
 #### Path Parameters
 
-- `userId` (string, required) Unique identifier of the user whose orders to retrieve
+- `userId` *(string, required)* Unique identifier of the user whose orders to retrieve
 
 #### Query Parameters
 
-- `status` (string) Filter orders by their current status (placed, approved, or delivered)
+- `status` *(string)* Filter orders by their current status (placed, approved, or delivered)
 
 ### Responses
 
@@ -673,8 +673,8 @@ Service is healthy and operational
 
 #### Field Definitions
 
-- `status` (string) Overall health status of the API and its dependencies Enums: `healthy`, `degraded`, `down`
-- `timestamp` (string) ISO 8601 timestamp of when the health check was performed
+- `status` *(string)* Overall health status of the API and its dependencies Enums: `healthy`, `degraded`, `down`
+- `timestamp` *(string)* ISO 8601 timestamp of when the health check was performed
 
 ## Shared Schema Definitions
 
@@ -682,20 +682,20 @@ Service is healthy and operational
 
 Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
 
-- `error` (string) Human-readable error message describing what went wrong
-- `code` (integer) Numeric error code for programmatic error handling
+- `error` *(string)* Human-readable error message describing what went wrong
+- `code` *(integer)* Numeric error code for programmatic error handling
 
 ### OrderList
 
 Used in: GET /v3/orders, GET /v3/users/{userId}/orders
 
-- `orders` (array of objects) Array of order objects matching the query criteria
-- `cursor` (string) Pagination cursor for fetching the next page of results
+- `orders` *(array of objects)* Array of order objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
 
 **Order**
-- `id` (string): Unique identifier for the order
-- `userId` (string): Identifier of the user who placed the order
-- `petId` (string): Identifier of the pet being ordered
-- `status` (string): Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
-- `quantity` (integer): Number of pets being ordered
+- `id` *(string)*: Unique identifier for the order
+- `userId` *(string)*: Identifier of the user who placed the order
+- `petId` *(string)*: Identifier of the pet being ordered
+- `status` *(string)*: Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)*: Number of pets being ordered
 
