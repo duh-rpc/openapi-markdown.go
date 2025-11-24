@@ -20,19 +20,33 @@ GET [/v3/orders/{orderId}](#getv3ordersorderid) | Get order by ID
 GET [/v3/health](#getv3health) | Health check endpoint
 GET [/v3/metrics](#getv3metrics) | Get API metrics
 
-## admin
+## Admin
 
 ### POST /v3/pets.delete
 
-Removes a pet from the store inventory
+Removes a pet from the store inventory. Requires admin privileges to perform this operation
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
-X-Admin-Token | Admin authorization token | true | string
+X-Admin-Token | Admin authorization token required for this operation | true | string
 
-##### 200 Response
+### Request
+
+```json
+{
+   "petId": "dl2INvNSQT"
+}
+```
+
+#### Field Definitions
+
+- `petId` *(string, required)* Unique identifier of the pet to delete from inventory
+
+### Responses
+
+#### 200 Response
 
 Pet deleted successfully
 
@@ -45,9 +59,13 @@ Pet deleted successfully
 }
 ```
 
-##### 403 Response
+#### Field Definitions
 
-Unauthorized
+- `pet` *(object)* Information about the deleted pet
+
+#### 403 Response
+
+Unauthorized - invalid or missing admin token
 
 ```json
 {
@@ -56,7 +74,7 @@ Unauthorized
 }
 ```
 
-##### 404 Response
+#### 404 Response
 
 Pet not found
 
@@ -69,17 +87,19 @@ Pet not found
 
 ### GET /v3/metrics
 
-Returns usage metrics and statistics
+Returns usage metrics and statistics including request counts, throughput, and uptime. Requires admin privileges
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
-X-Admin-Token | Admin authorization token | true | string
+X-Admin-Token | Admin authorization token required for accessing metrics | true | string
 
-##### 200 Response
+### Responses
 
-Metrics data
+#### 200 Response
+
+Metrics data retrieved successfully
 
 ```json
 {
@@ -89,9 +109,15 @@ Metrics data
 }
 ```
 
-##### 403 Response
+#### Field Definitions
 
-Unauthorized
+- `requestsTotal` *(integer)* Total number of API requests processed since service start
+- `requestsPerSecond` *(number)* Current request throughput measured in requests per second
+- `uptime` *(integer)* Server uptime in seconds since last restart
+
+#### 403 Response
+
+Unauthorized - invalid or missing admin token
 
 ```json
 {
@@ -100,27 +126,25 @@ Unauthorized
 }
 ```
 
-## orders
+## Orders
 
 ### GET /v3/users/{userId}/orders
 
-Returns all orders placed by a specific user
+Returns all orders placed by a specific user with optional filtering by order status
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+- `userId` *(string, required)* Unique identifier of the user whose orders to retrieve
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-status | Filter by order status | false | string
+- `status` *(string)* Filter orders by their current status (placed, approved, or delivered)
 
-##### 200 Response
+### Responses
 
-Successful response
+#### 200 Response
+
+Successful response with user's orders
 
 ```json
 {
@@ -137,7 +161,11 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+See [OrderList](#orderlist)
+
+#### 404 Response
 
 User not found
 
@@ -150,18 +178,19 @@ User not found
 
 ### GET /v3/orders
 
-Returns a list of all orders in the system
+Returns a paginated list of all orders in the system with cursor-based pagination support
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-after | Cursor for pagination - returns orders after this cursor | false | string
-first | Number of orders to return (cursor-based pagination) | false | integer
+- `after` *(string)* Cursor for pagination - returns orders after this cursor
 
-##### 200 Response
+- `first` *(integer)* Number of orders to return (cursor-based pagination)
 
-Successful response
+### Responses
+
+#### 200 Response
+
+Successful response with order list
 
 ```json
 {
@@ -178,11 +207,17 @@ Successful response
 }
 ```
 
+#### Field Definitions
+
+See [OrderList](#orderlist)
+
 ### POST /v3/orders
 
-Place a new order for pets
+Place a new order for pets with specified quantity and delivery details
 
-##### 201 Response
+### Responses
+
+#### 201 Response
 
 Order created successfully
 
@@ -193,9 +228,14 @@ Order created successfully
 }
 ```
 
-##### 400 Response
+#### Field Definitions
 
-Invalid order data
+- `id` *(string)* Unique identifier assigned to the newly created order
+- `message` *(string)* Confirmation message about the order placement
+
+#### 400 Response
+
+Invalid order data or insufficient inventory
 
 ```json
 {
@@ -206,17 +246,17 @@ Invalid order data
 
 ### GET /v3/orders/{orderId}
 
-Returns detailed order information
+Returns detailed information about a specific order including items, status, and delivery information
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-orderId | Order identifier | true | string
+- `orderId` *(string, required)* Unique identifier of the order to retrieve
 
-##### 200 Response
+### Responses
 
-Successful response
+#### 200 Response
+
+Successful response with order details
 
 ```json
 {
@@ -228,7 +268,15 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+- `id` *(string)* Unique identifier for the order
+- `userId` *(string)* Identifier of the user who placed the order
+- `petId` *(string)* Identifier of the pet being ordered
+- `status` *(string)* Current status of the order in the fulfillment process Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)* Number of pets being ordered
+
+#### 404 Response
 
 Order not found
 
@@ -239,21 +287,23 @@ Order not found
 }
 ```
 
-## pets
+## Pets
 
 ### GET /v3/pets
 
-Returns a paginated list of all pets in the store
+Returns a paginated list of all pets in the store with support for filtering by tags and cursor-based pagination
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-after | Cursor for pagination - returns pets after this cursor | false | string
-first | Number of pets to return (cursor-based pagination) | false | integer
-tag | Filter by tag | false | string
+- `after` *(string)* Cursor for pagination - returns pets after this cursor
 
-##### 200 Response
+- `first` *(integer)* Number of pets to return (cursor-based pagination)
+
+- `tag` *(string)* Filter by tag
+
+### Responses
+
+#### 200 Response
 
 Successful response with pet list
 
@@ -274,7 +324,18 @@ Successful response with pet list
 }
 ```
 
-##### 400 Response
+#### Field Definitions
+
+- `pets` *(array of objects)* Array of pet objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
+
+**Pet**
+- `id` *(string)*: Unique identifier for the pet
+- `name` *(string)*: Name of the pet
+- `status` *(string)*: Current availability status of the pet in the store. Enums: `available`, `pending`, `sold`
+- `tags` *(string array)*: Tags for categorizing and filtering pets (e.g., species, characteristics)
+
+#### 400 Response
 
 Invalid request parameters
 
@@ -287,15 +348,17 @@ Invalid request parameters
 
 ### POST /v3/pets
 
-Adds a new pet to the store inventory
+Adds a new pet to the store inventory with the provided details
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
-X-Request-ID | Unique request identifier | true | string
+X-Request-ID | Unique request identifier for tracking and debugging | true | string
 
-##### 201 Response
+### Responses
+
+#### 201 Response
 
 Pet created successfully
 
@@ -306,7 +369,12 @@ Pet created successfully
 }
 ```
 
-##### 400 Response
+#### Field Definitions
+
+- `id` *(string)* Unique identifier assigned to the newly created pet
+- `message` *(string)* Confirmation message about the pet creation
+
+#### 400 Response
 
 Invalid pet data
 
@@ -319,15 +387,29 @@ Invalid pet data
 
 ### POST /v3/pets.delete
 
-Removes a pet from the store inventory
+Removes a pet from the store inventory. Requires admin privileges to perform this operation
 
-#### Header Parameters
+#### Headers
 
 Name | Description | Required | Type
 -----|-------------|----------|-----
-X-Admin-Token | Admin authorization token | true | string
+X-Admin-Token | Admin authorization token required for this operation | true | string
 
-##### 200 Response
+### Request
+
+```json
+{
+   "petId": "dl2INvNSQT"
+}
+```
+
+#### Field Definitions
+
+- `petId` *(string, required)* Unique identifier of the pet to delete from inventory
+
+### Responses
+
+#### 200 Response
 
 Pet deleted successfully
 
@@ -340,9 +422,13 @@ Pet deleted successfully
 }
 ```
 
-##### 403 Response
+#### Field Definitions
 
-Unauthorized
+- `pet` *(object)* Information about the deleted pet
+
+#### 403 Response
+
+Unauthorized - invalid or missing admin token
 
 ```json
 {
@@ -351,7 +437,7 @@ Unauthorized
 }
 ```
 
-##### 404 Response
+#### 404 Response
 
 Pet not found
 
@@ -364,17 +450,17 @@ Pet not found
 
 ### GET /v3/pets/{petId}
 
-Returns detailed information about a specific pet
+Returns detailed information about a specific pet including its status, tags, and availability
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-petId | ID of pet to return | true | string
+- `petId` *(string, required)* Unique identifier of the pet to retrieve
 
-##### 200 Response
+### Responses
 
-Successful response
+#### 200 Response
+
+Successful response with pet details
 
 ```json
 {
@@ -387,7 +473,14 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+- `id` *(string)* Unique identifier for the pet
+- `name` *(string)* Name of the pet
+- `status` *(string)* Current availability status of the pet in the store Enums: `available`, `pending`, `sold`
+- `tags` *(string array)* Tags for categorizing and filtering pets (e.g., species, characteristics)
+
+#### 404 Response
 
 Pet not found
 
@@ -398,21 +491,21 @@ Pet not found
 }
 ```
 
-## users
+## Users
 
 ### GET /v3/users
 
-Returns a list of registered users
+Returns a list of registered users with optional filtering by active status
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-active | Filter by active status | false | boolean
+- `active` *(boolean)* Filter users by their active status (true for active users, false for inactive)
 
-##### 200 Response
+### Responses
 
-Successful response
+#### 200 Response
+
+Successful response with user list
 
 ```json
 {
@@ -427,11 +520,23 @@ Successful response
 }
 ```
 
+#### Field Definitions
+
+- `users` *(array of objects)* Array of user objects matching the query criteria
+
+**User**
+- `id` *(string)*: Unique identifier for the user account
+- `username` *(string)*: User's chosen username for login and display
+- `email` *(string)*: User's email address for communication and account recovery
+- `active` *(boolean)*: Indicates whether the user account is currently active
+
 ### POST /v3/users
 
-Register a new user account
+Register a new user account in the system with username and email
 
-##### 201 Response
+### Responses
+
+#### 201 Response
 
 User created successfully
 
@@ -442,9 +547,14 @@ User created successfully
 }
 ```
 
-##### 400 Response
+#### Field Definitions
 
-Invalid user data
+- `id` *(string)* Unique identifier assigned to the newly created user
+- `message` *(string)* Confirmation message about the user registration
+
+#### 400 Response
+
+Invalid user data or duplicate email/username
 
 ```json
 {
@@ -455,17 +565,17 @@ Invalid user data
 
 ### GET /v3/users/{userId}
 
-Returns detailed user information
+Returns detailed information about a specific user including their profile and account status
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+- `userId` *(string, required)* Unique identifier of the user to retrieve
 
-##### 200 Response
+### Responses
 
-Successful response
+#### 200 Response
+
+Successful response with user details
 
 ```json
 {
@@ -476,7 +586,14 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+- `id` *(string)* Unique identifier for the user account
+- `username` *(string)* User's chosen username for login and display
+- `email` *(string)* User's email address for communication and account recovery
+- `active` *(boolean)* Indicates whether the user account is currently active
+
+#### 404 Response
 
 User not found
 
@@ -489,23 +606,21 @@ User not found
 
 ### GET /v3/users/{userId}/orders
 
-Returns all orders placed by a specific user
+Returns all orders placed by a specific user with optional filtering by order status
 
 #### Path Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-userId | User identifier | true | string
+- `userId` *(string, required)* Unique identifier of the user whose orders to retrieve
 
 #### Query Parameters
 
-Name | Description | Required | Type
------|-------------|----------|-----
-status | Filter by order status | false | string
+- `status` *(string)* Filter orders by their current status (placed, approved, or delivered)
 
-##### 200 Response
+### Responses
 
-Successful response
+#### 200 Response
+
+Successful response with user's orders
 
 ```json
 {
@@ -522,7 +637,11 @@ Successful response
 }
 ```
 
-##### 404 Response
+#### Field Definitions
+
+See [OrderList](#orderlist)
+
+#### 404 Response
 
 User not found
 
@@ -537,11 +656,13 @@ User not found
 
 ### GET /v3/health
 
-Returns the health status of the API
+Returns the health status of the API and its dependencies for monitoring purposes
 
-##### 200 Response
+### Responses
 
-Service is healthy
+#### 200 Response
+
+Service is healthy and operational
 
 ```json
 {
@@ -549,4 +670,32 @@ Service is healthy
    "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+#### Field Definitions
+
+- `status` *(string)* Overall health status of the API and its dependencies Enums: `healthy`, `degraded`, `down`
+- `timestamp` *(string)* ISO 8601 timestamp of when the health check was performed
+
+## Shared Schema Definitions
+
+### ErrorResponse
+
+Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
+
+- `error` *(string)* Human-readable error message describing what went wrong
+- `code` *(integer)* Numeric error code for programmatic error handling
+
+### OrderList
+
+Used in: GET /v3/orders, GET /v3/users/{userId}/orders
+
+- `orders` *(array of objects)* Array of order objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
+
+**Order**
+- `id` *(string)*: Unique identifier for the order
+- `userId` *(string)*: Identifier of the user who placed the order
+- `petId` *(string)*: Identifier of the pet being ordered
+- `status` *(string)*: Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)*: Number of pets being ordered
 

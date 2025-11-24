@@ -12,10 +12,14 @@ A Go library that converts OpenAPI 3.x specifications to comprehensive markdown 
 - Converts OpenAPI 3.x specifications to clean, readable Markdown
 - Generates Table of Contents with anchor links
 - Organizes endpoints by tags
-- Renders parameter tables (path, query, header)
-- **Generates JSON response examples from schemas**
-- Supports explicit examples and schema-based generation
-- Validates that response schemas use $ref (no inline schemas)
+- **Request body documentation** with JSON examples and field definitions
+- **Nested schema documentation** with hierarchical field definitions
+- **Shared schema definitions** documented once, referenced across endpoints
+- **Parameter documentation** with enum support (path/query use field definitions, headers use tables)
+- **Rich response field documentation** for 2xx success responses
+- Generates JSON examples from schemas (explicit, named, or schema-based)
+- Validates that schemas use $ref (no inline schemas)
+- Supports recursion detection and depth limiting
 
 ## Installation
 
@@ -23,15 +27,37 @@ A Go library that converts OpenAPI 3.x specifications to comprehensive markdown 
 go get github.com/duh-rpc/openapi-markdown.go
 ```
 
-## Response Examples
+## Documentation Format
 
-The converter automatically generates JSON examples for API responses using three priority levels:
+The converter generates comprehensive documentation with hierarchical field definitions for schemas.
 
-1. **Explicit examples**: Uses `example` field from response media type
+### Request Bodies
+
+Request bodies (for POST/PUT/PATCH/DELETE operations) include:
+- JSON example generated from schema
+- Field definitions with type information, required status, and descriptions
+- Nested objects documented in separate sections
+- Enum values shown inline
+
+### Response Documentation
+
+All responses include JSON examples. Success responses (2xx) also include detailed field definitions:
+- Field type and required status
+- Field descriptions
+- Nested object documentation
+- Array handling (primitives inline, objects as separate definitions)
+
+Error responses (4xx/5xx) show JSON examples only.
+
+### Example Generation
+
+The converter automatically generates JSON examples using three priority levels:
+
+1. **Explicit examples**: Uses `example` field from media type
 2. **Named examples**: Uses first entry from `examples` collection
 3. **Schema-based**: Generates from $ref schema using openapi-schema.go library
 
-**Important**: Response schemas must use `$ref` to reference schemas in `components/schemas`. Inline schemas in responses are not supported and will cause an error.
+**Important**: Request and response schemas must use `$ref` to reference schemas in `components/schemas`. Inline schemas are not supported and will cause an error.
 
 ### Example OpenAPI Spec
 
@@ -70,8 +96,29 @@ components:
 
 ### Generated Markdown
 
+The new field definitions format provides comprehensive schema documentation:
+
 ```markdown
-##### 200 Response
+### Request
+
+\`\`\`json
+{
+   "name": "Fluffy",
+   "species": "cat"
+}
+\`\`\`
+
+#### Field Definitions
+
+**name** (string, required)
+- The name of the pet
+
+**species** (string, required)
+- The species of the pet. Enums: `cat`, `dog`, `bird`
+
+### Responses
+
+#### 200 Response
 
 List of pets
 
@@ -85,6 +132,13 @@ List of pets
    ]
 }
 \`\`\`
+
+#### Field Definitions
+
+**pets** (array of objects)
+- List of all pets in the store
+- `id` (string): The unique identifier
+- `name` (string): The name of the pet
 ```
 
 ## Usage
@@ -157,11 +211,14 @@ The example demonstrates:
 - Multiple tags (pets, users, orders, admin)
 - Untagged operations (Default APIs section)
 - Operations with multiple tags appearing in each section
-- All parameter types: path, query, header
-- All parameter data types: string, integer, boolean
+- Request body documentation with field definitions
+- Nested schema definitions with separate sections
+- All parameter types with new field definitions format (path, query, headers)
+- Parameter enums shown inline
 - Multiple response codes (200, 201, 400, 403, 404)
-- **JSON response examples with explicit and generated examples**
-- **Response schemas using $ref (required pattern)**
+- Response field definitions for 2xx success responses
+- JSON examples with explicit and generated examples
+- Schemas using $ref (required pattern)
 - Rich descriptions and summaries
 
 ### Regenerating Example Output

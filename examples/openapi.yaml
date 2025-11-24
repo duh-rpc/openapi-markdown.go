@@ -8,9 +8,9 @@ paths:
   /v3/pets:
     get:
       summary: List all pets
-      description: Returns a paginated list of all pets in the store
+      description: Returns a paginated list of all pets in the store with support for filtering by tags and cursor-based pagination
       tags:
-        - pets
+        - Pets
       parameters:
         - name: after
           in: query
@@ -53,13 +53,13 @@ paths:
 
     post:
       summary: Create a new pet
-      description: Adds a new pet to the store inventory
+      description: Adds a new pet to the store inventory with the provided details
       tags:
-        - pets
+        - Pets
       parameters:
         - name: X-Request-ID
           in: header
-          description: Unique request identifier
+          description: Unique request identifier for tracking and debugging
           required: true
           schema:
             type: string
@@ -80,14 +80,14 @@ paths:
   /v3/pets.delete:
     post:
       summary: Delete a pet
-      description: Removes a pet from the store inventory
+      description: Removes a pet from the store inventory. Requires admin privileges to perform this operation
       tags:
-        - pets
-        - admin
+        - Pets
+        - Admin
       parameters:
         - name: X-Admin-Token
           in: header
-          description: Admin authorization token
+          description: Admin authorization token required for this operation
           required: true
           schema:
             type: string
@@ -111,7 +111,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Unauthorized
+          description: Unauthorized - invalid or missing admin token
           content:
             application/json:
               schema:
@@ -120,19 +120,19 @@ paths:
   /v3/pets/{petId}:
     get:
       summary: Get a pet by ID
-      description: Returns detailed information about a specific pet
+      description: Returns detailed information about a specific pet including its status, tags, and availability
       tags:
-        - pets
+        - Pets
       parameters:
         - name: petId
           in: path
-          description: ID of pet to return
+          description: Unique identifier of the pet to retrieve
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Successful response with pet details
           content:
             application/json:
               schema:
@@ -147,19 +147,19 @@ paths:
   /v3/users:
     get:
       summary: List all users
-      description: Returns a list of registered users
+      description: Returns a list of registered users with optional filtering by active status
       tags:
-        - users
+        - Users
       parameters:
         - name: active
           in: query
-          description: Filter by active status
+          description: Filter users by their active status (true for active users, false for inactive)
           required: false
           schema:
             type: boolean
       responses:
         '200':
-          description: Successful response
+          description: Successful response with user list
           content:
             application/json:
               schema:
@@ -167,9 +167,9 @@ paths:
 
     post:
       summary: Create a new user
-      description: Register a new user account
+      description: Register a new user account in the system with username and email
       tags:
-        - users
+        - Users
       responses:
         '201':
           description: User created successfully
@@ -178,7 +178,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserCreated'
         '400':
-          description: Invalid user data
+          description: Invalid user data or duplicate email/username
           content:
             application/json:
               schema:
@@ -187,19 +187,19 @@ paths:
   /v3/users/{userId}:
     get:
       summary: Get user by ID
-      description: Returns detailed user information
+      description: Returns detailed information about a specific user including their profile and account status
       tags:
-        - users
+        - Users
       parameters:
         - name: userId
           in: path
-          description: User identifier
+          description: Unique identifier of the user to retrieve
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Successful response with user details
           content:
             application/json:
               schema:
@@ -214,26 +214,26 @@ paths:
   /v3/users/{userId}/orders:
     get:
       summary: Get user orders
-      description: Returns all orders placed by a specific user
+      description: Returns all orders placed by a specific user with optional filtering by order status
       tags:
-        - users
-        - orders
+        - Users
+        - Orders
       parameters:
         - name: userId
           in: path
-          description: User identifier
+          description: Unique identifier of the user whose orders to retrieve
           required: true
           schema:
             type: string
         - name: status
           in: query
-          description: Filter by order status
+          description: Filter orders by their current status (placed, approved, or delivered)
           required: false
           schema:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Successful response with user's orders
           content:
             application/json:
               schema:
@@ -248,9 +248,9 @@ paths:
   /v3/orders:
     get:
       summary: List all orders
-      description: Returns a list of all orders in the system
+      description: Returns a paginated list of all orders in the system with cursor-based pagination support
       tags:
-        - orders
+        - Orders
       parameters:
         - name: after
           in: query
@@ -266,7 +266,7 @@ paths:
             type: integer
       responses:
         '200':
-          description: Successful response
+          description: Successful response with order list
           content:
             application/json:
               schema:
@@ -274,9 +274,9 @@ paths:
 
     post:
       summary: Create a new order
-      description: Place a new order for pets
+      description: Place a new order for pets with specified quantity and delivery details
       tags:
-        - orders
+        - Orders
       responses:
         '201':
           description: Order created successfully
@@ -285,7 +285,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderCreated'
         '400':
-          description: Invalid order data
+          description: Invalid order data or insufficient inventory
           content:
             application/json:
               schema:
@@ -294,19 +294,19 @@ paths:
   /v3/orders/{orderId}:
     get:
       summary: Get order by ID
-      description: Returns detailed order information
+      description: Returns detailed information about a specific order including items, status, and delivery information
       tags:
-        - orders
+        - Orders
       parameters:
         - name: orderId
           in: path
-          description: Order identifier
+          description: Unique identifier of the order to retrieve
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Successful response with order details
           content:
             application/json:
               schema:
@@ -321,10 +321,10 @@ paths:
   /v3/health:
     get:
       summary: Health check endpoint
-      description: Returns the health status of the API
+      description: Returns the health status of the API and its dependencies for monitoring purposes
       responses:
         '200':
-          description: Service is healthy
+          description: Service is healthy and operational
           content:
             application/json:
               schema:
@@ -333,25 +333,25 @@ paths:
   /v3/metrics:
     get:
       summary: Get API metrics
-      description: Returns usage metrics and statistics
+      description: Returns usage metrics and statistics including request counts, throughput, and uptime. Requires admin privileges
       tags:
-        - admin
+        - Admin
       parameters:
         - name: X-Admin-Token
           in: header
-          description: Admin authorization token
+          description: Admin authorization token required for accessing metrics
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Metrics data
+          description: Metrics data retrieved successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Metrics'
         '403':
-          description: Unauthorized
+          description: Unauthorized - invalid or missing admin token
           content:
             application/json:
               schema:
@@ -366,42 +366,50 @@ components:
       properties:
         petId:
           type: string
-          description: ID of pet to delete
+          description: Unique identifier of the pet to delete from inventory
 
     PetDeleteResponse:
       type: object
       properties:
         pet:
           type: object
+          description: Information about the deleted pet
           properties:
             petId:
               type: string
-              description: ID of the deleted pet
+              description: Unique identifier of the deleted pet
             success:
               type: boolean
+              description: Indicates whether the deletion was successful
 
     PetList:
       type: object
       properties:
         pets:
           type: array
+          description: Array of pet objects matching the query criteria
           items:
             $ref: '#/components/schemas/Pet'
         cursor:
           type: string
+          description: Pagination cursor for fetching the next page of results
 
     Pet:
       type: object
       properties:
         id:
           type: string
+          description: Unique identifier for the pet
         name:
           type: string
+          description: Name of the pet
         status:
           type: string
+          description: Current availability status of the pet in the store
           enum: [available, pending, sold]
         tags:
           type: array
+          description: Tags for categorizing and filtering pets (e.g., species, characteristics)
           items:
             type: string
 
@@ -410,14 +418,17 @@ components:
       properties:
         id:
           type: string
+          description: Unique identifier assigned to the newly created pet
         message:
           type: string
+          description: Confirmation message about the pet creation
 
     UserList:
       type: object
       properties:
         users:
           type: array
+          description: Array of user objects matching the query criteria
           items:
             $ref: '#/components/schemas/User'
 
@@ -426,79 +437,101 @@ components:
       properties:
         id:
           type: string
+          description: Unique identifier for the user account
         username:
           type: string
+          description: User's chosen username for login and display
         email:
           type: string
           format: email
+          description: User's email address for communication and account recovery
         active:
           type: boolean
+          description: Indicates whether the user account is currently active
 
     UserCreated:
       type: object
       properties:
         id:
           type: string
+          description: Unique identifier assigned to the newly created user
         message:
           type: string
+          description: Confirmation message about the user registration
 
     OrderList:
       type: object
       properties:
         orders:
           type: array
+          description: Array of order objects matching the query criteria
           items:
             $ref: '#/components/schemas/Order'
         cursor:
           type: string
+          description: Pagination cursor for fetching the next page of results
 
     Order:
       type: object
       properties:
         id:
           type: string
+          description: Unique identifier for the order
         userId:
           type: string
+          description: Identifier of the user who placed the order
         petId:
           type: string
+          description: Identifier of the pet being ordered
         status:
           type: string
+          description: Current status of the order in the fulfillment process
           enum: [placed, approved, delivered]
         quantity:
           type: integer
+          description: Number of pets being ordered
 
     OrderCreated:
       type: object
       properties:
         id:
           type: string
+          description: Unique identifier assigned to the newly created order
         message:
           type: string
+          description: Confirmation message about the order placement
 
     HealthStatus:
       type: object
       properties:
         status:
           type: string
+          description: Overall health status of the API and its dependencies
           enum: [healthy, degraded, down]
         timestamp:
           type: string
           format: date-time
+          description: ISO 8601 timestamp of when the health check was performed
 
     Metrics:
       type: object
       properties:
         requestsTotal:
           type: integer
+          description: Total number of API requests processed since service start
         requestsPerSecond:
           type: number
+          description: Current request throughput measured in requests per second
         uptime:
           type: integer
+          description: Server uptime in seconds since last restart
 
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
+          description: Human-readable error message describing what went wrong
         code:
           type: integer
+          description: Numeric error code for programmatic error handling
