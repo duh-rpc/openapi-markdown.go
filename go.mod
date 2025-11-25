@@ -1,6 +1,6 @@
 module github.com/duh-rpc/openapi-markdown.go
 
-go 1.25.4
+go 1.25.0
 
 require (
 	github.com/duh-rpc/openapi-schema.go v0.7.0
