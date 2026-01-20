@@ -326,7 +326,7 @@ Successful response with pet list
 
 #### Field Definitions
 
-- `pets` *(array of objects)* Array of pet objects matching the query criteria
+- `pets` *(array of Pet)* Array of pet objects matching the query criteria
 - `cursor` *(string)* Pagination cursor for fetching the next page of results
 
 **Pet**
@@ -522,7 +522,7 @@ Successful response with user list
 
 #### Field Definitions
 
-- `users` *(array of objects)* Array of user objects matching the query criteria
+- `users` *(array of User)* Array of user objects matching the query criteria
 
 **User**
 - `id` *(string)*: Unique identifier for the user account
@@ -689,7 +689,7 @@ Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{
 
 Used in: GET /v3/orders, GET /v3/users/{userId}/orders
 
-- `orders` *(array of objects)* Array of order objects matching the query criteria
+- `orders` *(array of Order)* Array of order objects matching the query criteria
 - `cursor` *(string)* Pagination cursor for fetching the next page of results
 
 **Order**
