@@ -703,6 +703,145 @@ components:
 	}
 }
 
+func TestConvertSchemaPropertyExamples(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		openapi    string
+		opts       conv.ConvertOptions
+		wantMd     []string
+		dontWantMd []string
+	}{
+		{
+			name: "property-level examples are used in JSON output",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: "jane.doe@example.com"
+        age:
+          type: integer
+          example: 28
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "usr_abc123xyz"
+        email:
+          type: string
+          example: "jane.doe@example.com"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-03-15T10:30:00Z"`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				`"email": "jane.doe@example.com"`,
+				`"age": 28`,
+				`"id": "usr_abc123xyz"`,
+				`"createdAt": "2024-03-15T10:30:00Z"`,
+			},
+			dontWantMd: []string{
+				`"email": "user@example.com"`, // generated default
+				`"id": "string"`,              // generated default
+			},
+		},
+		{
+			name: "schema-level example overrides property examples",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /transfers:
+    post:
+      summary: Create transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transfer'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+components:
+  schemas:
+    Transfer:
+      type: object
+      example:
+        id: "xfer_complete_example"
+        amount: 99999
+        currency: "USD"
+      properties:
+        id:
+          type: string
+          example: "xfer_property_example"
+        amount:
+          type: integer
+          example: 100
+        currency:
+          type: string`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				`"id": "xfer_complete_example"`,
+				`"amount": 99999`,
+				`"currency": "USD"`,
+			},
+			dontWantMd: []string{
+				`"id": "xfer_property_example"`,
+				`"amount": 100`,
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+			for _, dontWant := range test.dontWantMd {
+				assert.NotContains(t, md, dontWant)
+			}
+		})
+	}
+}
+
 func TestConvertCompleteEndpoint(t *testing.T) {
 	for _, test := range []struct {
 		name    string
