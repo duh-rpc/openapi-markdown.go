@@ -350,9 +350,18 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 								builder.WriteString(field.typeStr)
 								builder.WriteString(" array")
 							} else if field.isArray && field.isObject {
-								builder.WriteString("array of objects")
+								if field.nestedSchemaRef != "" {
+									builder.WriteString("array of ")
+									builder.WriteString(field.nestedSchemaRef)
+								} else {
+									builder.WriteString("array of objects")
+								}
 							} else if field.isObject {
-								builder.WriteString("object")
+								if field.nestedSchemaRef != "" {
+									builder.WriteString(field.nestedSchemaRef)
+								} else {
+									builder.WriteString("object")
+								}
 							} else {
 								builder.WriteString(field.typeStr)
 							}
@@ -1119,9 +1128,18 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 				builder.WriteString(field.typeStr)
 				builder.WriteString(" array")
 			} else if field.isArray && field.isObject {
-				builder.WriteString("array of objects")
+				if field.nestedSchemaRef != "" {
+					builder.WriteString("array of ")
+					builder.WriteString(field.nestedSchemaRef)
+				} else {
+					builder.WriteString("array of objects")
+				}
 			} else if field.isObject {
-				builder.WriteString("object")
+				if field.nestedSchemaRef != "" {
+					builder.WriteString(field.nestedSchemaRef)
+				} else {
+					builder.WriteString("object")
+				}
 			} else {
 				builder.WriteString(field.typeStr)
 			}
@@ -1527,7 +1545,18 @@ func renderSchemaDefinition(builder *strings.Builder, def schemaDefinition) erro
 				builder.WriteString(field.typeStr)
 				builder.WriteString(" array")
 			} else if field.isArray && field.isObject {
-				builder.WriteString("array of objects")
+				if field.nestedSchemaRef != "" {
+					builder.WriteString("array of ")
+					builder.WriteString(field.nestedSchemaRef)
+				} else {
+					builder.WriteString("array of objects")
+				}
+			} else if field.isObject {
+				if field.nestedSchemaRef != "" {
+					builder.WriteString(field.nestedSchemaRef)
+				} else {
+					builder.WriteString("object")
+				}
 			} else {
 				builder.WriteString(field.typeStr)
 			}

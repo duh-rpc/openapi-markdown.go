@@ -1728,7 +1728,7 @@ components:
 				"#### Field Definitions",
 				"`name` *(string, required)*",
 				"Resource name",
-				"`metadata` *(object, required)*",
+				"`metadata` *(Metadata, required)*",
 				"**Metadata**",
 				"- `created` *(string, required)*: Creation timestamp",
 				"- `tags` *(string array)*: Resource tags",
@@ -1801,7 +1801,7 @@ components:
 			wantMd: []string{
 				"**Level2**",
 				"- `value` *(string)*",
-				"- `level3` *(object)*",
+				"- `level3` *(Level3)*",
 				"**Level3**",
 				"- `deep` *(string)*: Deeply nested value",
 			},
@@ -1864,7 +1864,7 @@ components:
 			wantMd: []string{
 				"`value` *(string)*",
 				"Node value",
-				"`children` *(array of objects)*",
+				"`children` *(array of TreeNode)*",
 				"Child nodes",
 			},
 		},
@@ -1933,7 +1933,7 @@ components:
 				Title: "Test API",
 			},
 			wantMd: []string{
-				"`items` *(array of objects)*",
+				"`items` *(array of Item)*",
 				"List of items",
 				"**Item**",
 				"- `id` *(string, required)*: Item ID",
