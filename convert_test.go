@@ -4068,3 +4068,190 @@ components:
 		})
 	}
 }
+
+func TestConvertProtobufStyleWrappedUnion(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "wrapped union renders common fields and nested variant objects",
+			openapi: `openapi: 3.0.0
+info:
+  title: Delivery API
+  version: 1.0.0
+paths:
+  /v3/deliveries.create:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+            example:
+              idempotencyKey: abc-123
+              destinationName: google-sftp
+              sftp:
+                remotePath: /outbound/payments/mt103.txt
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryCreateResponse'
+              example:
+                id: del-001
+                status: pending
+components:
+  schemas:
+    DeliveryCreateRequest:
+      type: object
+      required:
+        - idempotencyKey
+        - destinationName
+      properties:
+        idempotencyKey:
+          type: string
+          description: Unique key for idempotent creation
+        destinationName:
+          type: string
+          description: Name of the destination
+        sftp:
+          $ref: '#/components/schemas/SftpConfig'
+        smtp:
+          $ref: '#/components/schemas/SmtpConfig'
+    SftpConfig:
+      type: object
+      required:
+        - remotePath
+      properties:
+        remotePath:
+          type: string
+          description: Remote file path
+    SmtpConfig:
+      type: object
+      required:
+        - to
+        - subject
+      properties:
+        to:
+          type: string
+          description: Email recipient
+        subject:
+          type: string
+          description: Email subject
+    DeliveryCreateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Delivery identifier
+        status:
+          type: string
+          description: Delivery status`,
+			opts: conv.ConvertOptions{
+				Title: "Delivery API",
+			},
+			wantMd: []string{
+				"### Request",
+				"```json",
+				`"idempotencyKey": "abc-123"`,
+				`"remotePath": "/outbound/payments/mt103.txt"`,
+				"#### Field Definitions",
+				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
+				"`destinationName` *(string, required)* Name of the destination",
+				"`sftp` *(SftpConfig)*",
+				"`smtp` *(SmtpConfig)*",
+				"**SftpConfig**",
+				"`remotePath` *(string, required)*: Remote file path",
+				"**SmtpConfig**",
+				"`to` *(string, required)*: Email recipient",
+				"`subject` *(string, required)*: Email subject",
+			},
+			notWantMd: []string{},
+		},
+		{
+			name: "wrapped union without example still renders field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Delivery API
+  version: 1.0.0
+paths:
+  /v3/deliveries.create:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '200':
+          description: Created
+components:
+  schemas:
+    DeliveryCreateRequest:
+      type: object
+      required:
+        - idempotencyKey
+      properties:
+        idempotencyKey:
+          type: string
+          description: Unique key for idempotent creation
+        sftp:
+          $ref: '#/components/schemas/SftpConfig'
+        smtp:
+          $ref: '#/components/schemas/SmtpConfig'
+    SftpConfig:
+      type: object
+      required:
+        - remotePath
+      properties:
+        remotePath:
+          type: string
+          description: Remote file path
+    SmtpConfig:
+      type: object
+      required:
+        - to
+      properties:
+        to:
+          type: string
+          description: Email recipient`,
+			opts: conv.ConvertOptions{
+				Title: "Delivery API",
+			},
+			wantMd: []string{
+				"### Request",
+				"#### Field Definitions",
+				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
+				"`sftp` *(SftpConfig)*",
+				"**SftpConfig**",
+				"`remotePath` *(string, required)*: Remote file path",
+				"**SmtpConfig**",
+				"`to` *(string, required)*: Email recipient",
+			},
+			notWantMd: []string{},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
