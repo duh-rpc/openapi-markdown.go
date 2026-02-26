@@ -2906,7 +2906,8 @@ components:
         message:
           type: string`,
 			opts: conv.ConvertOptions{
-				Title: "Test API",
+				Title:               "Test API",
+				EnableSharedSchemas: true,
 			},
 			wantMd: []string{
 				"## Shared Schema Definitions",
@@ -2984,7 +2985,8 @@ components:
         name:
           type: string`,
 			opts: conv.ConvertOptions{
-				Title: "Test API",
+				Title:               "Test API",
+				EnableSharedSchemas: true,
 			},
 			wantMd: []string{
 				"#### Field Definitions",
@@ -3126,7 +3128,8 @@ components:
         id:
           type: string`,
 			opts: conv.ConvertOptions{
-				Title: "Test API",
+				Title:               "Test API",
+				EnableSharedSchemas: true,
 			},
 		},
 	} {
@@ -3203,6 +3206,138 @@ components:
 			for _, notWant := range test.notWantMd {
 				assert.NotContains(t, md, notWant)
 			}
+		})
+	}
+}
+
+func TestConvertDefaultInlineSharedSchemas(t *testing.T) {
+	for _, test := range []struct {
+		name            string
+		openapi         string
+		opts            conv.ConvertOptions
+		wantMd          []string
+		wantSharedCount int
+	}{
+		{
+			name: "shared schemas rendered inline by default",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User identifier
+        name:
+          type: string
+          description: User name
+      required:
+        - id
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+				Debug: true,
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"`id` *(string, required)* User identifier",
+				"`name` *(string)* User name",
+			},
+			wantSharedCount: 2,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			require.NotNil(t, result.Debug)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			assert.NotContains(t, md, "## Shared Schema Definitions")
+			assert.NotContains(t, md, "See [User](#user)")
+			assert.NotContains(t, md, "See [Error](#error)")
+
+			assert.Equal(t, test.wantSharedCount, result.Debug.SharedSchemaCount)
 		})
 	}
 }

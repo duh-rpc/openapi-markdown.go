@@ -163,7 +163,15 @@ Successful response with user's orders
 
 #### Field Definitions
 
-See [OrderList](#orderlist)
+- `orders` *(array of Order)* Array of order objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
+
+**Order**
+- `id` *(string)*: Unique identifier for the order
+- `userId` *(string)*: Identifier of the user who placed the order
+- `petId` *(string)*: Identifier of the pet being ordered
+- `status` *(string)*: Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)*: Number of pets being ordered
 
 #### 404 Response
 
@@ -209,7 +217,15 @@ Successful response with order list
 
 #### Field Definitions
 
-See [OrderList](#orderlist)
+- `orders` *(array of Order)* Array of order objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
+
+**Order**
+- `id` *(string)*: Unique identifier for the order
+- `userId` *(string)*: Identifier of the user who placed the order
+- `petId` *(string)*: Identifier of the pet being ordered
+- `status` *(string)*: Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)*: Number of pets being ordered
 
 ### POST /v3/orders
 
@@ -639,7 +655,15 @@ Successful response with user's orders
 
 #### Field Definitions
 
-See [OrderList](#orderlist)
+- `orders` *(array of Order)* Array of order objects matching the query criteria
+- `cursor` *(string)* Pagination cursor for fetching the next page of results
+
+**Order**
+- `id` *(string)*: Unique identifier for the order
+- `userId` *(string)*: Identifier of the user who placed the order
+- `petId` *(string)*: Identifier of the pet being ordered
+- `status` *(string)*: Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
+- `quantity` *(integer)*: Number of pets being ordered
 
 #### 404 Response
 
@@ -675,27 +699,4 @@ Service is healthy and operational
 
 - `status` *(string)* Overall health status of the API and its dependencies Enums: `healthy`, `degraded`, `down`
 - `timestamp` *(string)* ISO 8601 timestamp of when the health check was performed
-
-## Shared Schema Definitions
-
-### ErrorResponse
-
-Used in: GET /v3/metrics, GET /v3/orders/{orderId}, GET /v3/pets, GET /v3/pets/{petId}, GET /v3/users/{userId}, GET /v3/users/{userId}/orders, POST /v3/orders, POST /v3/pets, POST /v3/pets.delete, POST /v3/users
-
-- `error` *(string)* Human-readable error message describing what went wrong
-- `code` *(integer)* Numeric error code for programmatic error handling
-
-### OrderList
-
-Used in: GET /v3/orders, GET /v3/users/{userId}/orders
-
-- `orders` *(array of Order)* Array of order objects matching the query criteria
-- `cursor` *(string)* Pagination cursor for fetching the next page of results
-
-**Order**
-- `id` *(string)*: Unique identifier for the order
-- `userId` *(string)*: Identifier of the user who placed the order
-- `petId` *(string)*: Identifier of the pet being ordered
-- `status` *(string)*: Current status of the order in the fulfillment process. Enums: `placed`, `approved`, `delivered`
-- `quantity` *(integer)*: Number of pets being ordered
 
