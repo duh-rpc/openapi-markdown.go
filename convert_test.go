@@ -2906,7 +2906,8 @@ components:
         message:
           type: string`,
 			opts: conv.ConvertOptions{
-				Title: "Test API",
+				Title:               "Test API",
+				EnableSharedSchemas: true,
 			},
 			wantMd: []string{
 				"## Shared Schema Definitions",
@@ -2984,7 +2985,8 @@ components:
         name:
           type: string`,
 			opts: conv.ConvertOptions{
-				Title: "Test API",
+				Title:               "Test API",
+				EnableSharedSchemas: true,
 			},
 			wantMd: []string{
 				"#### Field Definitions",
@@ -3126,7 +3128,8 @@ components:
         id:
           type: string`,
 			opts: conv.ConvertOptions{
-				Title: "Test API",
+				Title:               "Test API",
+				EnableSharedSchemas: true,
 			},
 		},
 	} {
@@ -3207,7 +3210,7 @@ components:
 	}
 }
 
-func TestConvertDisableSharedSchemas(t *testing.T) {
+func TestConvertDefaultInlineSharedSchemas(t *testing.T) {
 	for _, test := range []struct {
 		name            string
 		openapi         string
@@ -3216,7 +3219,7 @@ func TestConvertDisableSharedSchemas(t *testing.T) {
 		wantSharedCount int
 	}{
 		{
-			name: "shared schemas rendered inline when disabled",
+			name: "shared schemas rendered inline by default",
 			openapi: `openapi: 3.0.0
 info:
   title: Test API
@@ -3308,9 +3311,8 @@ components:
           type: string
           description: Error message`,
 			opts: conv.ConvertOptions{
-				Title:                "Test API",
-				Debug:                true,
-				DisableSharedSchemas: true,
+				Title: "Test API",
+				Debug: true,
 			},
 			wantMd: []string{
 				"#### Field Definitions",

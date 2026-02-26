@@ -38,10 +38,10 @@ type DebugInfo struct {
 
 // ConvertOptions configures markdown generation
 type ConvertOptions struct {
-	DisableSharedSchemas bool
-	Description          string
-	Title                string
-	Debug                bool
+	EnableSharedSchemas bool
+	Description         string
+	Title               string
+	Debug               bool
 }
 
 // Convert converts OpenAPI 3.x to markdown API documentation
@@ -85,9 +85,9 @@ func Convert(openapi []byte, opts ConvertOptions) (*ConvertResult, error) {
 	tagGroups := groupByTags(endpoints)
 	sharedSchemas := identifySharedSchemas(endpoints)
 
-	markdownSharedSchemas := sharedSchemas
-	if opts.DisableSharedSchemas {
-		markdownSharedSchemas = map[string]schemaUsage{}
+	markdownSharedSchemas := map[string]schemaUsage{}
+	if opts.EnableSharedSchemas {
+		markdownSharedSchemas = sharedSchemas
 	}
 
 	markdown, warnings, err := generateMarkdown(opts, endpoints, tagGroups, examples, markdownSharedSchemas, v3Model.Model)
