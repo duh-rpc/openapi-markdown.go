@@ -421,6 +421,20 @@ func renderSharedSchemaFields(builder *strings.Builder, schema *base.Schema, sch
 
 	// Handle oneOf schemas
 	if len(schema.OneOf) > 0 {
+		// Render sibling properties before oneOf variants
+		mergedProps, _ := mergeAllOfProperties(schema)
+		if mergedProps != nil && mergedProps.Len() > 0 {
+			visited := make(map[string]int)
+			visited[schemaName] = 1
+			fields, nestedDefs, err := extractSchemaFieldsFromProperties(schema, visited, maxDepth)
+			if err != nil {
+				return err
+			}
+			if err := renderSharedFieldsList(builder, fields, nestedDefs, schemaName); err != nil {
+				return err
+			}
+		}
+
 		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
 			builder.WriteString("Request body is one of the following variants, selected by the `")
 			builder.WriteString(schema.Discriminator.PropertyName)

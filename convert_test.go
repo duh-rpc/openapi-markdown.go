@@ -4069,6 +4069,128 @@ components:
 	}
 }
 
+func TestConvertSharedSchemaOneOfWithSiblingProperties(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "shared oneOf schema with sibling properties renders common fields in shared definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '201':
+          description: Created
+  /deliveries/{id}:
+    put:
+      summary: Update delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '200':
+          description: Updated
+components:
+  schemas:
+    DeliveryCreateRequest:
+      required:
+        - destinationName
+        - idempotencyKey
+      properties:
+        destinationName:
+          type: string
+          description: Target destination name
+        idempotencyKey:
+          type: string
+          description: Unique key for idempotent creation
+      oneOf:
+        - $ref: '#/components/schemas/SftpDeliveryCreate'
+        - $ref: '#/components/schemas/SmtpDeliveryCreate'
+      discriminator:
+        propertyName: transport
+    SftpDeliveryCreate:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type discriminator
+        host:
+          type: string
+          description: SFTP hostname
+    SmtpDeliveryCreate:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type discriminator
+        recipient:
+          type: string
+          description: Email recipient`,
+			opts: conv.ConvertOptions{
+				Title:               "Test API",
+				EnableSharedSchemas: true,
+			},
+			wantMd: []string{
+				"## Shared Schema Definitions",
+				"### DeliveryCreateRequest",
+				"`destinationName` *(string, required)* Target destination name",
+				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
+				"selected by the `transport` field",
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+				"`host` *(string)* SFTP hostname",
+				"`recipient` *(string)* Email recipient",
+				"Enums: `sftp`",
+				"Enums: `smtp`",
+			},
+			notWantMd: []string{},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
 func TestConvertProtobufStyleWrappedUnion(t *testing.T) {
 	for _, test := range []struct {
 		name      string
