@@ -4378,6 +4378,123 @@ components:
 	}
 }
 
+func TestConvertResponseOneOfWithSiblingProperties(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "response with oneOf and sibling properties renders common fields and variants",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries/{id}:
+    get:
+      summary: Get delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryResponse'
+components:
+  schemas:
+    DeliveryResponse:
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          description: Unique delivery identifier
+        status:
+          type: string
+          description: Current delivery status
+          enum: [pending, completed, failed]
+      oneOf:
+        - $ref: '#/components/schemas/SftpDeliveryResponse'
+        - $ref: '#/components/schemas/SmtpDeliveryResponse'
+      discriminator:
+        propertyName: transport
+    SftpDeliveryResponse:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type
+        host:
+          type: string
+          description: SFTP hostname
+        remotePath:
+          type: string
+          description: Remote file path
+    SmtpDeliveryResponse:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type
+        recipient:
+          type: string
+          description: Email recipient
+        subject:
+          type: string
+          description: Email subject`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"`id` *(string, required)* Unique delivery identifier",
+				"`status` *(string, required)* Current delivery status Enums: `pending`, `completed`, `failed`",
+				"selected by the `transport` field",
+				"**SftpDeliveryResponse**",
+				"`transport` *(string, required)* Transport type Enums: `sftp`",
+				"`host` *(string)* SFTP hostname",
+				"`remotePath` *(string)* Remote file path",
+				"**SmtpDeliveryResponse**",
+				"`transport` *(string, required)* Transport type Enums: `smtp`",
+				"`recipient` *(string)* Email recipient",
+				"`subject` *(string)* Email subject",
+			},
+			notWantMd: []string{},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
 func TestConvertOneOfWithSiblingProperties(t *testing.T) {
 	for _, test := range []struct {
 		name      string
