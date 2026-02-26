@@ -12,6 +12,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 // ConvertResult contains markdown output and generation metadata
@@ -333,82 +334,9 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 			schemaPair := model.Components.Schemas.GetOrZero(schemaName)
 			if schemaPair != nil {
 				schema := schemaPair.Schema()
-				if schema != nil && schema.Properties != nil && schema.Properties.Len() > 0 {
-					// Render schema properties directly
-					const maxDepth = 10
-					visited := make(map[string]int)
-					visited[schemaName] = 1
-
-					fields, nestedDefs, err := extractSchemaFieldsFromProperties(schema, visited, maxDepth)
-					if err != nil {
+				if schema != nil {
+					if err := renderSharedSchemaFields(builder, schema, schemaName); err != nil {
 						return err
-					}
-
-					// Render top-level fields
-					for _, field := range fields {
-						builder.WriteString("- `")
-						builder.WriteString(field.name)
-						builder.WriteString("`")
-
-						if field.typeStr != "" {
-							builder.WriteString(" *(")
-
-							if field.isArray && !field.isObject {
-								builder.WriteString(field.typeStr)
-								builder.WriteString(" array")
-							} else if field.isArray && field.isObject {
-								if field.nestedSchemaRef != "" {
-									builder.WriteString("array of ")
-									builder.WriteString(field.nestedSchemaRef)
-								} else {
-									builder.WriteString("array of objects")
-								}
-							} else if field.isObject {
-								if field.nestedSchemaRef != "" {
-									builder.WriteString(field.nestedSchemaRef)
-								} else {
-									builder.WriteString("object")
-								}
-							} else {
-								builder.WriteString(field.typeStr)
-							}
-
-							if field.required {
-								builder.WriteString(", required")
-							}
-							builder.WriteString(")*")
-						}
-
-						if field.description != "" {
-							builder.WriteString(" ")
-							builder.WriteString(field.description)
-						} else if !field.isObject {
-							// Warn about missing description for non-object fields
-							log.Printf("Warning: Field '%s' in schema '%s' is missing a description", field.name, schemaName)
-						}
-
-						if len(field.enum) > 0 {
-							builder.WriteString(" Enums: ")
-							for i, enumVal := range field.enum {
-								if i > 0 {
-									builder.WriteString(", ")
-								}
-								builder.WriteString("`")
-								fmt.Fprintf(builder, "%v", enumVal)
-								builder.WriteString("`")
-							}
-						}
-
-						builder.WriteString("\n")
-					}
-
-					builder.WriteString("\n")
-
-					// Render nested schema definitions
-					for _, nestedDef := range nestedDefs {
-						if err := renderSchemaDefinition(builder, nestedDef); err != nil {
-							return err
-						}
 					}
 				}
 			}
@@ -416,6 +344,138 @@ func renderSharedDefinitions(builder *strings.Builder, sharedSchemas map[string]
 	}
 
 	return nil
+}
+
+// renderSharedFieldsList renders a list of schema fields in the shared definitions format
+func renderSharedFieldsList(builder *strings.Builder, fields []schemaField, nestedDefs []schemaDefinition, schemaName string) error {
+	for _, field := range fields {
+		builder.WriteString("- `")
+		builder.WriteString(field.name)
+		builder.WriteString("`")
+
+		if field.typeStr != "" {
+			builder.WriteString(" *(")
+
+			if field.isArray && !field.isObject {
+				builder.WriteString(field.typeStr)
+				builder.WriteString(" array")
+			} else if field.isArray && field.isObject {
+				if field.nestedSchemaRef != "" {
+					builder.WriteString("array of ")
+					builder.WriteString(field.nestedSchemaRef)
+				} else {
+					builder.WriteString("array of objects")
+				}
+			} else if field.isObject {
+				if field.nestedSchemaRef != "" {
+					builder.WriteString(field.nestedSchemaRef)
+				} else {
+					builder.WriteString("object")
+				}
+			} else {
+				builder.WriteString(field.typeStr)
+			}
+
+			if field.required {
+				builder.WriteString(", required")
+			}
+			builder.WriteString(")*")
+		}
+
+		if field.description != "" {
+			builder.WriteString(" ")
+			builder.WriteString(field.description)
+		} else if !field.isObject {
+			log.Printf("Warning: Field '%s' in schema '%s' is missing a description", field.name, schemaName)
+		}
+
+		if len(field.enum) > 0 {
+			builder.WriteString(" Enums: ")
+			for i, enumVal := range field.enum {
+				if i > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString("`")
+				fmt.Fprintf(builder, "%v", enumVal)
+				builder.WriteString("`")
+			}
+		}
+
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("\n")
+
+	for _, nestedDef := range nestedDefs {
+		if err := renderSchemaDefinition(builder, nestedDef); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// renderSharedSchemaFields renders fields for a shared schema, handling oneOf, allOf, and plain properties
+func renderSharedSchemaFields(builder *strings.Builder, schema *base.Schema, schemaName string) error {
+	const maxDepth = 10
+
+	// Handle oneOf schemas
+	if len(schema.OneOf) > 0 {
+		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+			builder.WriteString("Request body is one of the following variants, selected by the `")
+			builder.WriteString(schema.Discriminator.PropertyName)
+			builder.WriteString("` field:\n\n")
+		}
+
+		for _, variantProxy := range schema.OneOf {
+			if variantProxy == nil {
+				continue
+			}
+			if variantProxy.IsReference() {
+				ref := variantProxy.GetReference()
+				name, err := extractSchemaName(ref)
+				if err == nil {
+					builder.WriteString("**")
+					builder.WriteString(name)
+					builder.WriteString("**\n")
+				}
+			}
+
+			variantSchema := variantProxy.Schema()
+			if variantSchema == nil {
+				continue
+			}
+
+			visited := make(map[string]int)
+			visited[schemaName] = 1
+			fields, nestedDefs, err := extractSchemaFieldsFromProperties(variantSchema, visited, maxDepth)
+			if err != nil {
+				return err
+			}
+
+			if err := renderSharedFieldsList(builder, fields, nestedDefs, schemaName); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	// Handle allOf or plain properties
+	mergedProps, _ := mergeAllOfProperties(schema)
+	if mergedProps == nil || mergedProps.Len() == 0 {
+		return nil
+	}
+
+	visited := make(map[string]int)
+	visited[schemaName] = 1
+
+	fields, nestedDefs, err := extractSchemaFieldsFromProperties(schema, visited, maxDepth)
+	if err != nil {
+		return err
+	}
+
+	return renderSharedFieldsList(builder, fields, nestedDefs, schemaName)
 }
 
 func generateMarkdown(opts ConvertOptions, endpoints []endpoint, tagGroups map[string][]endpoint, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage, model v3.Document) (string, []string, error) {
@@ -1081,6 +1141,43 @@ func extractRequestExample(op *v3.Operation, examples map[string]json.RawMessage
 	return "", nil
 }
 
+// mergeAllOfProperties merges properties from allOf members with the schema's own properties.
+// If allOf is empty, returns the schema's own Properties and Required unchanged.
+func mergeAllOfProperties(schema *base.Schema) (*orderedmap.Map[string, *base.SchemaProxy], []string) {
+	if len(schema.AllOf) == 0 {
+		return schema.Properties, schema.Required
+	}
+
+	merged := orderedmap.New[string, *base.SchemaProxy]()
+	var required []string
+
+	for _, memberProxy := range schema.AllOf {
+		if memberProxy == nil {
+			continue
+		}
+		member := memberProxy.Schema()
+		if member == nil {
+			continue
+		}
+		if member.Properties != nil {
+			for pair := member.Properties.First(); pair != nil; pair = pair.Next() {
+				merged.Set(pair.Key(), pair.Value())
+			}
+		}
+		required = append(required, member.Required...)
+	}
+
+	// Own properties take precedence over allOf members
+	if schema.Properties != nil {
+		for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+			merged.Set(pair.Key(), pair.Value())
+		}
+	}
+	required = append(required, schema.Required...)
+
+	return merged, required
+}
+
 // renderFieldDefinitionsContent renders the content of field definitions (without the header)
 func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage) error {
 	if schemaProxy == nil {
@@ -1110,7 +1207,37 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 		return nil
 	}
 
-	if schema.Properties == nil || schema.Properties.Len() == 0 {
+	// Handle oneOf schemas (discriminated unions)
+	if len(schema.OneOf) > 0 {
+		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+			builder.WriteString("Request body is one of the following variants, selected by the `")
+			builder.WriteString(schema.Discriminator.PropertyName)
+			builder.WriteString("` field:\n\n")
+		}
+
+		for _, variantProxy := range schema.OneOf {
+			if variantProxy == nil {
+				continue
+			}
+			if variantProxy.IsReference() {
+				ref := variantProxy.GetReference()
+				name, err := extractSchemaName(ref)
+				if err == nil {
+					builder.WriteString("**")
+					builder.WriteString(name)
+					builder.WriteString("**\n")
+				}
+			}
+			if err := renderFieldDefinitionsContent(builder, variantProxy, examples, sharedSchemas); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	mergedProps, _ := mergeAllOfProperties(schema)
+	if mergedProps == nil || mergedProps.Len() == 0 {
 		return nil
 	}
 
@@ -1207,7 +1334,39 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 		return nil
 	}
 
-	if schema.Properties == nil || schema.Properties.Len() == 0 {
+	// Handle oneOf schemas (discriminated unions)
+	if len(schema.OneOf) > 0 {
+		builder.WriteString("#### Field Definitions\n\n")
+
+		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+			builder.WriteString("Request body is one of the following variants, selected by the `")
+			builder.WriteString(schema.Discriminator.PropertyName)
+			builder.WriteString("` field:\n\n")
+		}
+
+		for _, variantProxy := range schema.OneOf {
+			if variantProxy == nil {
+				continue
+			}
+			if variantProxy.IsReference() {
+				ref := variantProxy.GetReference()
+				name, err := extractSchemaName(ref)
+				if err == nil {
+					builder.WriteString("**")
+					builder.WriteString(name)
+					builder.WriteString("**\n")
+				}
+			}
+			if err := renderFieldDefinitionsContent(builder, variantProxy, examples, sharedSchemas); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	mergedProps, _ := mergeAllOfProperties(schema)
+	if mergedProps == nil || mergedProps.Len() == 0 {
 		return nil
 	}
 
@@ -1275,7 +1434,12 @@ func renderRequestBody(builder *strings.Builder, op *v3.Operation, examples map[
 
 // extractSchemaFieldsFromProperties extracts field information directly from schema properties
 func extractSchemaFieldsFromProperties(schema *base.Schema, visited map[string]int, maxDepth int) ([]schemaField, []schemaDefinition, error) {
-	if schema == nil || schema.Properties == nil || schema.Properties.Len() == 0 {
+	if schema == nil {
+		return nil, nil, nil
+	}
+
+	mergedProps, mergedRequired := mergeAllOfProperties(schema)
+	if mergedProps == nil || mergedProps.Len() == 0 {
 		return nil, nil, nil
 	}
 
@@ -1294,13 +1458,11 @@ func extractSchemaFieldsFromProperties(schema *base.Schema, visited map[string]i
 	var nestedDefs []schemaDefinition
 
 	requiredFields := make(map[string]bool)
-	if schema.Required != nil {
-		for _, req := range schema.Required {
-			requiredFields[req] = true
-		}
+	for _, req := range mergedRequired {
+		requiredFields[req] = true
 	}
 
-	for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+	for pair := mergedProps.First(); pair != nil; pair = pair.Next() {
 		fieldName := pair.Key()
 		propSchema := pair.Value()
 
@@ -1441,7 +1603,8 @@ func extractSchemaFields(schemaProxy *base.SchemaProxy, examples map[string]json
 		return nil, nil, nil
 	}
 
-	if schema.Properties == nil || schema.Properties.Len() == 0 {
+	mergedProps, mergedRequired := mergeAllOfProperties(schema)
+	if mergedProps == nil || mergedProps.Len() == 0 {
 		return nil, nil, nil
 	}
 
@@ -1452,13 +1615,11 @@ func extractSchemaFields(schemaProxy *base.SchemaProxy, examples map[string]json
 	var nestedDefs []schemaDefinition
 
 	requiredFields := make(map[string]bool)
-	if schema.Required != nil {
-		for _, req := range schema.Required {
-			requiredFields[req] = true
-		}
+	for _, req := range mergedRequired {
+		requiredFields[req] = true
 	}
 
-	for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+	for pair := mergedProps.First(); pair != nil; pair = pair.Next() {
 		fieldName := pair.Key()
 		propSchema := pair.Value()
 

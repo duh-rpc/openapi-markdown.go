@@ -3480,3 +3480,591 @@ paths:
 		})
 	}
 }
+
+func TestConvertOneOfFieldDefinitions(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "oneOf with discriminator renders variant subsections",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    DeliveryCreateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDeliveryCreate'
+        - $ref: '#/components/schemas/SmtpDeliveryCreate'
+      discriminator:
+        propertyName: transport
+        mapping:
+          sftp: '#/components/schemas/SftpDeliveryCreate'
+          smtp: '#/components/schemas/SmtpDeliveryCreate'
+    DeliveryBase:
+      type: object
+      required:
+        - idempotencyKey
+      properties:
+        idempotencyKey:
+          type: string
+          description: Unique key for idempotent creation
+    SftpDeliveryCreate:
+      allOf:
+        - $ref: '#/components/schemas/DeliveryBase'
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type
+        host:
+          type: string
+          description: SFTP hostname
+      required:
+        - transport
+        - host
+    SmtpDeliveryCreate:
+      allOf:
+        - $ref: '#/components/schemas/DeliveryBase'
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type
+        recipient:
+          type: string
+          description: Email recipient
+      required:
+        - transport
+        - recipient`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"selected by the `transport` field",
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
+				"`transport` *(string, required)* Transport type Enums: `sftp`",
+				"`host` *(string, required)* SFTP hostname",
+				"`transport` *(string, required)* Transport type Enums: `smtp`",
+				"`recipient` *(string, required)* Email recipient",
+			},
+			notWantMd: []string{},
+		},
+		{
+			name: "oneOf without discriminator renders variant subsections without intro line",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    DeliveryCreateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDeliveryCreate'
+        - $ref: '#/components/schemas/SmtpDeliveryCreate'
+    DeliveryBase:
+      type: object
+      required:
+        - idempotencyKey
+      properties:
+        idempotencyKey:
+          type: string
+          description: Unique key for idempotent creation
+    SftpDeliveryCreate:
+      allOf:
+        - $ref: '#/components/schemas/DeliveryBase'
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type
+      required:
+        - transport
+    SmtpDeliveryCreate:
+      allOf:
+        - $ref: '#/components/schemas/DeliveryBase'
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type
+      required:
+        - transport`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
+			},
+			notWantMd: []string{
+				"selected by the",
+			},
+		},
+		{
+			name: "response with oneOf also renders field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries/{id}:
+    get:
+      summary: Get delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryResponse'
+components:
+  schemas:
+    DeliveryResponse:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDelivery'
+        - $ref: '#/components/schemas/SmtpDelivery'
+      discriminator:
+        propertyName: transport
+    SftpDelivery:
+      type: object
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type
+        host:
+          type: string
+          description: SFTP hostname
+      required:
+        - transport
+    SmtpDelivery:
+      type: object
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type
+        recipient:
+          type: string
+          description: Email recipient
+      required:
+        - transport`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"**SftpDelivery**",
+				"**SmtpDelivery**",
+				"`host` *(string)* SFTP hostname",
+				"`recipient` *(string)* Email recipient",
+			},
+			notWantMd: []string{},
+		},
+		{
+			name: "non-oneOf schemas render field definitions normally",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    CreateUser:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: User name
+        email:
+          type: string
+          description: User email`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"`name` *(string, required)* User name",
+				"`email` *(string)* User email",
+			},
+			notWantMd: []string{
+				"selected by the",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertAllOfFieldDefinitions(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "allOf without oneOf merges properties from all members",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendedUser'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    ExtendedUser:
+      allOf:
+        - $ref: '#/components/schemas/BaseUser'
+      properties:
+        role:
+          type: string
+          description: User role
+      required:
+        - role
+    BaseUser:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: User name
+        email:
+          type: string
+          description: User email`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"`name` *(string, required)* User name",
+				"`email` *(string)* User email",
+				"`role` *(string, required)* User role",
+			},
+			notWantMd: []string{},
+		},
+		{
+			name: "own properties take precedence over allOf member properties",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    post:
+      summary: Create item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecialItem'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    SpecialItem:
+      allOf:
+        - $ref: '#/components/schemas/BaseItem'
+      properties:
+        name:
+          type: string
+          description: Overridden name description
+      required:
+        - name
+    BaseItem:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Base name description
+        category:
+          type: string
+          description: Item category`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"`name` *(string, required)* Overridden name description",
+				"`category` *(string)* Item category",
+			},
+			notWantMd: []string{
+				"Base name description",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertSharedSchemaOneOf(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "shared oneOf schema renders variant subsections in shared definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryRequest'
+      responses:
+        '201':
+          description: Created
+  /deliveries/{id}:
+    put:
+      summary: Update delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryRequest'
+      responses:
+        '200':
+          description: Updated
+components:
+  schemas:
+    DeliveryRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDelivery'
+        - $ref: '#/components/schemas/SmtpDelivery'
+      discriminator:
+        propertyName: transport
+    SftpDelivery:
+      type: object
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type
+        host:
+          type: string
+          description: SFTP hostname
+      required:
+        - transport
+    SmtpDelivery:
+      type: object
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type
+        recipient:
+          type: string
+          description: Email recipient
+      required:
+        - transport`,
+			opts: conv.ConvertOptions{
+				Title:               "Test API",
+				EnableSharedSchemas: true,
+			},
+			wantMd: []string{
+				"## Shared Schema Definitions",
+				"### DeliveryRequest",
+				"selected by the `transport` field",
+				"**SftpDelivery**",
+				"**SmtpDelivery**",
+				"`host` *(string)* SFTP hostname",
+				"`recipient` *(string)* Email recipient",
+				"Enums: `sftp`",
+				"Enums: `smtp`",
+			},
+			notWantMd: []string{},
+		},
+		{
+			name: "shared allOf schema renders merged properties in shared definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendedUser'
+      responses:
+        '201':
+          description: Created
+  /users/{id}:
+    put:
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendedUser'
+      responses:
+        '200':
+          description: Updated
+components:
+  schemas:
+    ExtendedUser:
+      allOf:
+        - $ref: '#/components/schemas/BaseUser'
+      properties:
+        role:
+          type: string
+          description: User role
+      required:
+        - role
+    BaseUser:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: User name
+        email:
+          type: string
+          description: User email`,
+			opts: conv.ConvertOptions{
+				Title:               "Test API",
+				EnableSharedSchemas: true,
+			},
+			wantMd: []string{
+				"## Shared Schema Definitions",
+				"### ExtendedUser",
+				"`name` *(string, required)* User name",
+				"`email` *(string)* User email",
+				"`role` *(string, required)* User role",
+			},
+			notWantMd: []string{},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
