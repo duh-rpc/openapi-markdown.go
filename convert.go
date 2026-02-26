@@ -1178,78 +1178,8 @@ func mergeAllOfProperties(schema *base.Schema) (*orderedmap.Map[string, *base.Sc
 	return merged, required
 }
 
-// renderFieldDefinitionsContent renders the content of field definitions (without the header)
-func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage) error {
-	if schemaProxy == nil {
-		return nil
-	}
-
-	// Check if this schema is shared (only for references)
-	if schemaProxy.IsReference() {
-		ref := schemaProxy.GetReference()
-		schemaName, err := extractSchemaName(ref)
-		if err == nil {
-			if _, isShared := sharedSchemas[schemaName]; isShared {
-				// Render reference to shared schema instead of full documentation
-				anchor := makeSchemaAnchor(schemaName)
-				builder.WriteString("See [")
-				builder.WriteString(schemaName)
-				builder.WriteString("](#")
-				builder.WriteString(anchor)
-				builder.WriteString(")\n\n")
-				return nil
-			}
-		}
-	}
-
-	schema := schemaProxy.Schema()
-	if schema == nil {
-		return nil
-	}
-
-	// Handle oneOf schemas (discriminated unions)
-	if len(schema.OneOf) > 0 {
-		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
-			builder.WriteString("Request body is one of the following variants, selected by the `")
-			builder.WriteString(schema.Discriminator.PropertyName)
-			builder.WriteString("` field:\n\n")
-		}
-
-		for _, variantProxy := range schema.OneOf {
-			if variantProxy == nil {
-				continue
-			}
-			if variantProxy.IsReference() {
-				ref := variantProxy.GetReference()
-				name, err := extractSchemaName(ref)
-				if err == nil {
-					builder.WriteString("**")
-					builder.WriteString(name)
-					builder.WriteString("**\n")
-				}
-			}
-			if err := renderFieldDefinitionsContent(builder, variantProxy, examples, sharedSchemas); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	mergedProps, _ := mergeAllOfProperties(schema)
-	if mergedProps == nil || mergedProps.Len() == 0 {
-		return nil
-	}
-
-	const maxDepth = 10
-	visited := make(map[string]int)
-
-	fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, visited, maxDepth)
-	if err != nil {
-		return err
-	}
-
-	// Render top-level fields
+// renderFieldsList renders a list of schema fields and their nested definitions
+func renderFieldsList(builder *strings.Builder, fields []schemaField, nestedDefs []schemaDefinition) error {
 	for _, field := range fields {
 		builder.WriteString("- `")
 		builder.WriteString(field.name)
@@ -1288,7 +1218,6 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 			builder.WriteString(" ")
 			builder.WriteString(field.description)
 		} else if !field.isObject {
-			// Warn about missing description for non-object fields
 			log.Printf("Warning: Field '%s' is missing a description", field.name)
 		}
 
@@ -1309,7 +1238,6 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 
 	builder.WriteString("\n")
 
-	// Render nested schema definitions
 	for _, nestedDef := range nestedDefs {
 		if err := renderSchemaDefinition(builder, nestedDef); err != nil {
 			return err
@@ -1317,6 +1245,90 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 	}
 
 	return nil
+}
+
+// renderFieldDefinitionsContent renders the content of field definitions (without the header)
+func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage) error {
+	if schemaProxy == nil {
+		return nil
+	}
+
+	// Check if this schema is shared (only for references)
+	if schemaProxy.IsReference() {
+		ref := schemaProxy.GetReference()
+		schemaName, err := extractSchemaName(ref)
+		if err == nil {
+			if _, isShared := sharedSchemas[schemaName]; isShared {
+				// Render reference to shared schema instead of full documentation
+				anchor := makeSchemaAnchor(schemaName)
+				builder.WriteString("See [")
+				builder.WriteString(schemaName)
+				builder.WriteString("](#")
+				builder.WriteString(anchor)
+				builder.WriteString(")\n\n")
+				return nil
+			}
+		}
+	}
+
+	schema := schemaProxy.Schema()
+	if schema == nil {
+		return nil
+	}
+
+	// Handle oneOf schemas (discriminated unions)
+	if len(schema.OneOf) > 0 {
+		// Render sibling properties before oneOf variants
+		if schema.Properties != nil && schema.Properties.Len() > 0 {
+			fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, make(map[string]int), 10)
+			if err != nil {
+				return err
+			}
+			if len(fields) > 0 {
+				if err := renderFieldsList(builder, fields, nestedDefs); err != nil {
+					return err
+				}
+			}
+		}
+
+		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+			builder.WriteString("Request body is one of the following variants, selected by the `")
+			builder.WriteString(schema.Discriminator.PropertyName)
+			builder.WriteString("` field:\n\n")
+		}
+
+		for _, variantProxy := range schema.OneOf {
+			if variantProxy == nil {
+				continue
+			}
+			if variantProxy.IsReference() {
+				ref := variantProxy.GetReference()
+				name, err := extractSchemaName(ref)
+				if err == nil {
+					builder.WriteString("**")
+					builder.WriteString(name)
+					builder.WriteString("**\n")
+				}
+			}
+			if err := renderFieldDefinitionsContent(builder, variantProxy, examples, sharedSchemas); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	mergedProps, _ := mergeAllOfProperties(schema)
+	if mergedProps == nil || mergedProps.Len() == 0 {
+		return nil
+	}
+
+	fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, make(map[string]int), 10)
+	if err != nil {
+		return err
+	}
+
+	return renderFieldsList(builder, fields, nestedDefs)
 }
 
 // renderFieldDefinitions renders field definitions section for a schema
@@ -1337,6 +1349,19 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 	// Handle oneOf schemas (discriminated unions)
 	if len(schema.OneOf) > 0 {
 		builder.WriteString("#### Field Definitions\n\n")
+
+		// Render sibling properties before oneOf variants
+		if schema.Properties != nil && schema.Properties.Len() > 0 {
+			fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, make(map[string]int), 10)
+			if err != nil {
+				return err
+			}
+			if len(fields) > 0 {
+				if err := renderFieldsList(builder, fields, nestedDefs); err != nil {
+					return err
+				}
+			}
+		}
 
 		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
 			builder.WriteString("Request body is one of the following variants, selected by the `")
