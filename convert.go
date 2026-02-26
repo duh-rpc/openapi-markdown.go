@@ -1227,15 +1227,32 @@ func renderRequestBody(builder *strings.Builder, op *v3.Operation, examples map[
 		return err
 	}
 
-	if exampleJSON == "" {
+	// Determine if a JSON schema exists for field definitions
+	hasSchema := false
+	if op.RequestBody.Content != nil {
+		for pair := op.RequestBody.Content.First(); pair != nil; pair = pair.Next() {
+			if pair.Key() == "application/json" {
+				mt := pair.Value()
+				if mt != nil && mt.Schema != nil {
+					hasSchema = true
+					break
+				}
+			}
+		}
+	}
+
+	// Nothing to render if there is no example and no schema
+	if exampleJSON == "" && !hasSchema {
 		return nil
 	}
 
 	builder.WriteString("### Request\n\n")
 
-	builder.WriteString("```json\n")
-	builder.WriteString(exampleJSON)
-	builder.WriteString("\n```\n\n")
+	if exampleJSON != "" {
+		builder.WriteString("```json\n")
+		builder.WriteString(exampleJSON)
+		builder.WriteString("\n```\n\n")
+	}
 
 	if op.RequestBody.Content != nil {
 		for pair := op.RequestBody.Content.First(); pair != nil; pair = pair.Next() {

@@ -3341,3 +3341,142 @@ components:
 		})
 	}
 }
+
+func TestConvertRequestBodyWithoutExample(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "schema with no example produces request section and field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDelivery'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    CreateDelivery:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Delivery name
+        email:
+          type: string
+          description: Contact email
+    UnionType:
+      oneOf:
+        - $ref: '#/components/schemas/CreateDelivery'`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"#### Field Definitions",
+				"`name` *(string, required)* Delivery name",
+				"`email` *(string)* Contact email",
+			},
+			notWantMd: []string{
+				"```json",
+			},
+		},
+		{
+			name: "schema with explicit example produces request section with JSON and field definitions",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    CreateUser:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: User name
+          example: "Jane Doe"
+        email:
+          type: string
+          description: User email
+          example: "jane@example.com"`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"### Request",
+				"```json",
+				"#### Field Definitions",
+				"`name` *(string, required)* User name",
+				"`email` *(string)* User email",
+			},
+			notWantMd: []string{},
+		},
+		{
+			name: "endpoint with no request body has no request section",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: Success`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{},
+			notWantMd: []string{
+				"### Request",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
