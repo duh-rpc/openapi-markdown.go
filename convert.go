@@ -435,8 +435,13 @@ func renderSharedSchemaFields(builder *strings.Builder, schema *base.Schema, sch
 			}
 		}
 
+		hasSiblingProps := mergedProps != nil && mergedProps.Len() > 0
 		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
-			builder.WriteString("Request body is one of the following variants, selected by the `")
+			if hasSiblingProps {
+				builder.WriteString("Includes one of the following variants, selected by the `")
+			} else {
+				builder.WriteString("Request body is one of the following variants, selected by the `")
+			}
 			builder.WriteString(schema.Discriminator.PropertyName)
 			builder.WriteString("` field:\n\n")
 		}
@@ -1293,7 +1298,8 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 	// Handle oneOf schemas (discriminated unions)
 	if len(schema.OneOf) > 0 {
 		// Render sibling properties before oneOf variants
-		if schema.Properties != nil && schema.Properties.Len() > 0 {
+		hasSiblingProps := schema.Properties != nil && schema.Properties.Len() > 0
+		if hasSiblingProps {
 			fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, make(map[string]int), 10)
 			if err != nil {
 				return err
@@ -1306,7 +1312,11 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 		}
 
 		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
-			builder.WriteString("Request body is one of the following variants, selected by the `")
+			if hasSiblingProps {
+				builder.WriteString("Includes one of the following variants, selected by the `")
+			} else {
+				builder.WriteString("Request body is one of the following variants, selected by the `")
+			}
 			builder.WriteString(schema.Discriminator.PropertyName)
 			builder.WriteString("` field:\n\n")
 		}
@@ -1365,7 +1375,8 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 		builder.WriteString("#### Field Definitions\n\n")
 
 		// Render sibling properties before oneOf variants
-		if schema.Properties != nil && schema.Properties.Len() > 0 {
+		hasSiblingProps := schema.Properties != nil && schema.Properties.Len() > 0
+		if hasSiblingProps {
 			fields, nestedDefs, err := extractSchemaFields(schemaProxy, examples, make(map[string]int), 10)
 			if err != nil {
 				return err
@@ -1378,7 +1389,11 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 		}
 
 		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
-			builder.WriteString("Request body is one of the following variants, selected by the `")
+			if hasSiblingProps {
+				builder.WriteString("Includes one of the following variants, selected by the `")
+			} else {
+				builder.WriteString("Request body is one of the following variants, selected by the `")
+			}
 			builder.WriteString(schema.Discriminator.PropertyName)
 			builder.WriteString("` field:\n\n")
 		}

@@ -1,0 +1,1628 @@
+openapi: 3.1.0
+
+info:
+  title: Document Delivery Service (DDS) API
+  version: 1.0.0
+  description: |
+    Secure document delivery service for routing financial documents to external
+    destinations via SFTP, SMTP, and IBM MQ.
+
+    ## API Pattern
+    All endpoints follow the gRPC convention: POST-only at `/v1/{subject}.{method}`.
+    There are no GET, PUT, PATCH, or DELETE HTTP methods.
+
+    ## Idempotency
+    `deliveries.create` requires a client-supplied `idempotencyKey`. Re-submitting the same
+    `idempotencyKey` returns the existing delivery status without creating a duplicate.
+    The server always generates the `deliveryId` as the primary key.
+
+    ## Pagination
+    List endpoints use opaque cursor-based pagination. Pass `page.endCursor` from a response
+    as `after` in the next request. When `page.hasNextPage` is false there are no further results.
+
+    ## Secret References
+    Credential values are never stored in DDS. All sensitive fields accept a GCP Secret Manager
+    reference. The referenced secret must exist and be accessible at the time the destination is
+    created or updated, and will be validated as part of those operations.
+
+    Format: `{secret}/versions/{version}` — the GCP project is inferred from the service's
+    runtime environment, eliminating the risk of misconfiguring development with production secrets.
+
+servers:
+  - url: https://dds.example.com/v1
+    description: Production
+
+paths:
+
+  # ── Deliveries ──────────────────────────────────────────────────────────────
+
+  /deliveries.create:
+    post:
+      operationId: deliveries_create
+      summary: Submit a document for delivery
+      description: |
+        Submits a document for delivery to a named active destination.
+
+        The `destinationName` field must reference a currently active (non-deleted)
+        destination by its human-readable name — **not** its `destinationId`.
+
+        The `transport` field must match the transport type configured on the named
+        destination. A mismatch returns a `400` with code `TRANSPORT_MISMATCH`.
+
+        If the destination has `allowedDocumentTypes` configured, the submitted
+        `documentType` must be in that list, otherwise the request is rejected with
+        `400` and code `VALIDATION_ERROR`.
+
+        Exactly one of `docBytes` or `docUrl` must be provided. `docUrl`
+        must be a `gcs://` URI; GCS access is not verified at submission time — any
+        access failure will be reflected in the delivery status via `deliveries.status`.
+        `SWIFT_MT` documents are validated for structural correctness before acceptance;
+        `OPAQUE` documents bypass structural validation.
+
+        `routing` fields not provided in the request fall back to the destination's
+        `routingDefaults`. If a required routing field is absent from both the request
+        and the destination defaults, the request is rejected with `400`.
+
+        This operation is idempotent: re-submitting the same `idempotencyKey` returns the
+        existing delivery without creating a duplicate.
+      tags: [Deliveries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+            example:
+              idempotencyKey: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+              destinationName: blackrock-ibmmq
+              transport: ibmmq
+              documentType: SWIFT_MT
+              docBytes: ezE6RjAxQkFSQ0dCMjJBWFhYMDAwMDAwMDAwMH17MjpJMTAzREVVVERFQkJYWFhYTn17NDo=
+              routing:
+                queue: OUTBOUND.PAYMENTS
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '200':
+          description: Delivery accepted (or already exists for this idempotencyKey)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryCreateEnvelopeResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DeliveryCreateEnvelopeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /deliveries.list:
+    post:
+      operationId: deliveries_list
+      summary: List deliveries with optional filters
+      description: |
+        Returns a paginated list of delivery summaries for the authenticated account.
+        Results are automatically scoped to the caller's account; no account filter
+        is accepted.
+
+        Multiple filters may be combined. All supplied filters are ANDed together.
+      tags: [Deliveries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryListRequest'
+            example:
+              filters:
+                destinationName: google-sftp
+                status: COMPLETED
+                createdAfter: '2024-01-01T00:00:00Z'
+              first: 100
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DeliveryListRequest'
+      responses:
+        '200':
+          description: Paginated list of delivery summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryListResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DeliveryListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /deliveries.status:
+    post:
+      operationId: deliveries_status
+      summary: Get detailed status for one or more deliveries
+      description: |
+        Returns full delivery details for the supplied list of `deliveryId` values.
+
+        Only deliveries belonging to the authenticated account are returned.
+        Unrecognised or unauthorised IDs are silently omitted from the response —
+        they do not cause an error.
+      tags: [Deliveries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryStatusRequest'
+            example:
+              deliveryIds:
+                - 018e9b2a-1f4c-7a3d-9f2b-8e1c4d5a6b7c
+                - 018e9b2a-1f4c-7a3d-9f2b-8e1c4d5a6b7d
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DeliveryStatusRequest'
+      responses:
+        '200':
+          description: Detailed delivery statuses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryStatusResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DeliveryStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ── Destinations ────────────────────────────────────────────────────────────
+
+  /destinations.create:
+    post:
+      operationId: destinations_create
+      summary: Register a new destination
+      description: |
+        Creates a new delivery destination with transport configuration and credential
+        secret references.
+
+        All secret references are validated against GCP Secret Manager at creation time — the
+        referenced secret must exist and be accessible. Destination names must be unique
+        among active (non-deleted) destinations.
+
+        Use the `transport` field as a discriminator to determine which credential and
+        `routingDefaults` fields apply.
+
+        `allowedDocumentTypes` restricts which document types may be submitted to this
+        destination. `retryPolicy` controls retry behaviour for all deliveries to this
+        destination and can be updated independently via `destinations.update` to respond
+        to degradations without recreating the destination. `routingDefaults` supplies
+        fallback values for any routing fields omitted in a delivery request.
+      tags: [Destinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationCreateRequest'
+            example:
+              name: google-sftp
+              transport: sftp
+              credentials:
+                type: password
+                host: sftp.google.com
+                port: 22
+                basePath: /outbound
+                username: sftp-username/versions/latest
+                password: sftp-password/versions/latest
+              allowedDocumentTypes:
+                - SWIFT_MT
+              retryPolicy:
+                initialBackoffSeconds: 30
+                maxBackoffSeconds: 3600
+                maxDurationSeconds: 86400
+              routingDefaults:
+                remotePath: /outbound/payments
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DestinationCreateRequest'
+      responses:
+        '200':
+          description: Destination created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationEnvelopeResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DestinationEnvelopeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /destinations.get:
+    post:
+      operationId: destinations_get
+      summary: Retrieve a destination by ID
+      description: |
+        Returns the full configuration for a single active destination identified by
+        its `destinationId`. Deleted destinations are not accessible.
+      tags: [Destinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationGetRequest'
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DestinationGetRequest'
+      responses:
+        '200':
+          description: Destination details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationEnvelopeResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DestinationEnvelopeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /destinations.update:
+    post:
+      operationId: destinations_update
+      summary: Replace a destination's configuration (full replacement)
+      description: |
+        Performs a full replacement of the destination identified by `destinationId`.
+        All fields must be supplied — this is not a partial update.
+
+        The `name` may be changed, provided it does not collide with another active
+        destination's name. The `transport` type may not be changed; to change transport,
+        delete the destination and create a new one.
+
+        All secret references are validated against GCP Secret Manager at update time.
+
+        `retryPolicy` may be updated independently of credentials to adjust retry
+        behaviour in response to destination degradations without recreating the
+        destination or interrupting in-flight deliveries.
+      tags: [Destinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationUpdateRequest'
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DestinationUpdateRequest'
+      responses:
+        '200':
+          description: Destination updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationEnvelopeResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DestinationEnvelopeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /destinations.delete:
+    post:
+      operationId: destinations_delete
+      summary: Soft-delete a destination
+      description: |
+        Marks a destination as deleted. Deleted destinations are excluded from all
+        `.list` results and cannot be referenced in new `deliveries.create` submissions.
+
+        This operation does **not** affect in-flight deliveries already referencing
+        this destination — those will continue to completion.
+
+        Deletion is a soft operation: the record is retained internally for audit and
+        historical delivery data, but is not accessible via any API endpoint.
+
+        Destinations cannot be undeleted. To replace a deleted destination, create a
+        new one (with a new `destinationId`). The `name` of a deleted destination
+        becomes available for reuse.
+      tags: [Destinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationDeleteRequest'
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DestinationDeleteRequest'
+      responses:
+        '200':
+          description: Destination marked as deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationDeleteEnvelopeResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DestinationDeleteEnvelopeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /destinations.list:
+    post:
+      operationId: destinations_list
+      summary: List active destinations
+      description: |
+        Returns a paginated list of active (non-deleted) destinations.
+        Deleted destinations are never returned.
+      tags: [Destinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationListRequest'
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DestinationListRequest'
+      responses:
+        '200':
+          description: Paginated list of active destinations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationListResponse'
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DestinationListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /destinations.test:
+    post:
+      operationId: destinations_test
+      summary: Test connectivity and authentication for a destination
+      description: |
+        Attempts to connect to and authenticate with the destination's target using
+        its stored configuration and credentials.
+
+        This endpoint **always returns HTTP 200**. Use the `status` field in the
+        response body (`ok` or `error`) to determine whether the test succeeded.
+        Detailed diagnostics are always included regardless of outcome.
+      tags: [Destinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationTestRequest'
+          application/protobuf:
+            schema:
+              $ref: '#/components/schemas/DestinationTestRequest'
+      responses:
+        '200':
+          description: Connectivity test result (check `status` field for outcome)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationTestEnvelopeResponse'
+              example:
+                result:
+                  destinationId: 018e9b2a-1f4c-7a3d-9f2b-8e1c4d5a6b7c
+                  transport: sftp
+                  status: ok
+                  diagnostics:
+                    connectionTimeMs: 142
+                    authSuccessful: true
+                    targetAccessible: true
+            application/protobuf:
+              schema:
+                $ref: '#/components/schemas/DestinationTestEnvelopeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+
+    # ── Primitives ─────────────────────────────────────────────────────────────
+
+    GcpSecretRef:
+      type: string
+      description: |
+        A reference to a secret in GCP Secret Manager. The secret must exist and be
+        accessible at the time it is submitted. The GCP project is inferred from the
+        service's runtime environment.
+
+        Format: `{secret_id}/versions/{version}`
+      pattern: '^[^/]+/versions/[^/]+$'
+      example: sftp-username/versions/latest
+
+    GcsDocumentUri:
+      type: string
+      description: |
+        A reference to a document stored in Google Cloud Storage. The service account
+        must have read access to the bucket at the time the delivery is submitted —
+        access is verified before the delivery is accepted.
+
+        Format: `gcs://{bucket}/{object-path}`
+      pattern: '^gcs://[^/]+/.+'
+      example: gcs://anchorage-documents/outbound/payments/mt103.txt
+
+    PageInfo:
+      type: object
+      required:
+        - hasNextPage
+        - endCursor
+      properties:
+        endCursor:
+          type: string
+          nullable: true
+          description: Cursor for the next page. Pass as `after` in the next request. Null when there are no further results.
+        hasNextPage:
+          type: boolean
+          description: Whether there are more results after this page.
+
+    RetryPolicy:
+      type: object
+      required:
+        - initialBackoffSeconds
+        - maxBackoffSeconds
+        - maxDurationSeconds
+      properties:
+        initialBackoffSeconds:
+          type: integer
+          minimum: 1
+          description: Initial retry delay in seconds. Subsequent retries use exponential backoff.
+          example: 30
+        maxBackoffSeconds:
+          type: integer
+          minimum: 1
+          description: Maximum retry delay cap in seconds.
+          example: 3600
+        maxDurationSeconds:
+          type: integer
+          minimum: 1
+          description: |
+            Maximum total time the delivery will be attempted before transitioning to EXPIRED.
+          example: 86400
+
+    DeliveryStatusEnum:
+      type: string
+      enum:
+        - PENDING
+        - RETRY
+        - COMPLETED
+        - EXPIRED
+      description: |
+        - `PENDING`: Accepted, awaiting first delivery attempt.
+        - `RETRY`: A previous attempt failed; waiting to retry with backoff.
+        - `COMPLETED`: Document was successfully delivered.
+        - `EXPIRED`: Maximum duration was exceeded before successful delivery.
+
+    # ── Delivery: Create ───────────────────────────────────────────────────────
+
+    SftpRouting:
+      type: object
+      properties:
+        remotePath:
+          type: string
+          description: |
+            Full path on the remote SFTP server. Appended to the destination's `basePath`.
+            Falls back to the destination's `routingDefaults.remotePath` if omitted.
+          example: /outbound/payments/mt103.txt
+
+    SmtpRouting:
+      type: object
+      properties:
+        to:
+          type: string
+          format: email
+          description: |
+            Recipient email address. Falls back to the destination's `routingDefaults.to` if omitted.
+          example: ops@blackrock.com
+        subject:
+          type: string
+          description: |
+            Email subject line. Falls back to the destination's `routingDefaults.subject` if omitted.
+          example: SWIFT MT103 Payment
+        filename:
+          type: string
+          description: |
+            Filename for the document attachment. Falls back to the destination's
+            `routingDefaults.filename` if omitted.
+          example: mt103.txt
+
+    IbmMqRouting:
+      type: object
+      properties:
+        queue:
+          type: string
+          description: |
+            Target IBM MQ queue name. Falls back to the destination's `routingDefaults.queue` if omitted.
+          example: OUTBOUND.PAYMENTS
+
+    SftpDeliveryCreateRequest:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type discriminator. Must be `sftp`.
+        routing:
+          $ref: '#/components/schemas/SftpRouting'
+
+    SmtpDeliveryCreateRequest:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type discriminator. Must be `smtp`.
+        routing:
+          $ref: '#/components/schemas/SmtpRouting'
+
+    IbmMqDeliveryCreateRequest:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [ibmmq]
+          description: Transport type discriminator. Must be `ibmmq`.
+        routing:
+          $ref: '#/components/schemas/IbmMqRouting'
+
+    DeliveryCreateRequest:
+      type: object
+      required:
+        - idempotencyKey
+        - destinationName
+        - documentType
+        - transport
+      properties:
+        idempotencyKey:
+          type: string
+          maxLength: 128
+          description: |
+            Client-supplied idempotency key. Re-submitting the same `idempotencyKey`
+            returns the existing delivery without creating a duplicate. The server
+            always generates the `deliveryId` as the primary key.
+        destinationName:
+          type: string
+          description: |
+            The **name** of the destination to deliver to. Must reference a currently
+            active (non-deleted) destination. Use the destination name, not the
+            `destinationId` — names are the stable human-readable references used
+            in delivery submissions.
+          example: google-sftp
+        documentType:
+          type: string
+          enum:
+            - SWIFT_MT
+            - OPAQUE
+          description: >-
+            Type of document being delivered. SWIFT_MT documents are validated
+            for correct block structure before acceptance. OPAQUE documents
+            bypass structural validation.
+        docBytes:
+          type: string
+          format: byte
+          description: |
+            The document as a base64-encoded byte array. Use for binary formats.
+            Exactly one of `docBytes` or `docUrl` must be provided.
+        docUrl:
+          $ref: '#/components/schemas/GcsDocumentUri'
+          description: |
+            A GCS URI pointing to the document to deliver. GCS access is not verified at
+            submission time — any access failure will be reflected in the delivery status.
+            Exactly one of `docBytes` or `docUrl` must be provided.
+      oneOf:
+        - $ref: '#/components/schemas/SftpDeliveryCreateRequest'
+        - $ref: '#/components/schemas/SmtpDeliveryCreateRequest'
+        - $ref: '#/components/schemas/IbmMqDeliveryCreateRequest'
+      discriminator:
+        propertyName: transport
+        mapping:
+          sftp: '#/components/schemas/SftpDeliveryCreateRequest'
+          smtp: '#/components/schemas/SmtpDeliveryCreateRequest'
+          ibmmq: '#/components/schemas/IbmMqDeliveryCreateRequest'
+
+    DeliveryCreateResponse:
+      type: object
+      required:
+        - deliveryId
+      properties:
+        deliveryId:
+          type: string
+          format: uuid
+          description: The ID for this delivery. Use this to query status.
+
+    # ── Delivery: List ─────────────────────────────────────────────────────────
+
+    DeliveryFilters:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/DeliveryStatusEnum'
+        destinationName:
+          type: string
+          description: Filter by exact destination name.
+        transport:
+          type: string
+          enum:
+            - sftp
+            - smtp
+            - ibmmq
+          description: Filter by transport type.
+        createdAfter:
+          type: string
+          format: date-time
+          description: Return only deliveries created at or after this timestamp (ISO 8601).
+        createdBefore:
+          type: string
+          format: date-time
+          description: Return only deliveries created at or before this timestamp (ISO 8601).
+
+    DeliveryListRequest:
+      type: object
+      properties:
+        filters:
+          $ref: '#/components/schemas/DeliveryFilters'
+        after:
+          type: string
+          description: Opaque cursor from a previous response's `page.endCursor` field.
+        first:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 100
+          description: Maximum number of results to return per page.
+
+    DeliverySummary:
+      type: object
+      required:
+        - deliveryId
+        - status
+        - destinationName
+        - transport
+        - documentType
+        - attemptCount
+        - submittedAt
+      properties:
+        deliveryId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/DeliveryStatusEnum'
+        destinationName:
+          type: string
+        transport:
+          type: string
+          enum:
+            - sftp
+            - smtp
+            - ibmmq
+          description: Transport protocol used for this delivery.
+        documentType:
+          type: string
+          enum:
+            - SWIFT_MT
+            - OPAQUE
+        attemptCount:
+          type: integer
+          minimum: 0
+        submittedAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+          description: Present only when status is COMPLETED.
+
+    DeliveryListResponse:
+      type: object
+      required:
+        - data
+        - page
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliverySummary'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+
+    # ── Delivery: Status ───────────────────────────────────────────────────────
+
+    DeliveryStatusRequest:
+      type: object
+      required:
+        - deliveryIds
+      properties:
+        deliveryIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 100
+          description: |
+            List of delivery IDs to retrieve. IDs not belonging to the authenticated
+            account are silently omitted from the response.
+
+    DeliveryDetail:
+      type: object
+      required:
+        - deliveryId
+        - status
+        - destinationName
+        - transport
+        - documentType
+        - attemptCount
+        - submittedAt
+      properties:
+        deliveryId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/DeliveryStatusEnum'
+        destinationName:
+          type: string
+        transport:
+          type: string
+          enum:
+            - sftp
+            - smtp
+            - ibmmq
+          description: Transport protocol used for this delivery.
+        documentType:
+          type: string
+          enum:
+            - SWIFT_MT
+            - OPAQUE
+        attemptCount:
+          type: integer
+          minimum: 0
+        lastError:
+          type: string
+          description: Error message from the most recent failed delivery attempt.
+        submittedAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+          description: Present only when status is COMPLETED.
+        expiredAt:
+          type: string
+          format: date-time
+          description: Present only when status is EXPIRED.
+
+    DeliveryStatusResponse:
+      type: object
+      required:
+        - deliveries
+      properties:
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryDetail'
+
+    # ── Destination Credentials ────────────────────────────────────────────────
+
+    SftpCredentialsPassword:
+      type: object
+      required:
+        - type
+        - host
+        - port
+        - basePath
+        - username
+        - password
+      properties:
+        type:
+          type: string
+          enum: [password]
+        host:
+          type: string
+          description: SFTP server hostname or IP address.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 22
+        basePath:
+          type: string
+          description: Root path on the remote server. `remotePath` in delivery metadata is appended to this.
+          example: /outbound
+        username:
+          $ref: '#/components/schemas/GcpSecretRef'
+        password:
+          $ref: '#/components/schemas/GcpSecretRef'
+
+    SftpCredentialsSshKey:
+      type: object
+      required:
+        - type
+        - host
+        - port
+        - basePath
+        - username
+        - privateKey
+      properties:
+        type:
+          type: string
+          enum: [sshKey]
+        host:
+          type: string
+          description: SFTP server hostname or IP address.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 22
+        basePath:
+          type: string
+          description: Root path on the remote server. `remotePath` in delivery metadata is appended to this.
+          example: /outbound
+        username:
+          $ref: '#/components/schemas/GcpSecretRef'
+        privateKey:
+          $ref: '#/components/schemas/GcpSecretRef'
+          description: PEM-encoded SSH private key.
+
+    SftpCredentials:
+      oneOf:
+        - $ref: '#/components/schemas/SftpCredentialsPassword'
+        - $ref: '#/components/schemas/SftpCredentialsSshKey'
+      discriminator:
+        propertyName: type
+        mapping:
+          password: '#/components/schemas/SftpCredentialsPassword'
+          sshKey: '#/components/schemas/SftpCredentialsSshKey'
+      description: |
+        SFTP credentials. Supply either `password` or `privateKey` — not both.
+
+    SmtpCredentials:
+      type: object
+      required:
+        - host
+        - port
+        - from
+        - username
+        - password
+      properties:
+        host:
+          type: string
+          description: SMTP server hostname.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 587
+          description: SMTP server port. STARTTLS is used when connecting.
+        from:
+          type: string
+          format: email
+          description: Envelope sender address.
+          example: noreply@example.com
+        username:
+          $ref: '#/components/schemas/GcpSecretRef'
+        password:
+          $ref: '#/components/schemas/GcpSecretRef'
+
+    IbmMqCredentialsSsl:
+      type: object
+      required:
+        - type
+        - host
+        - port
+        - queueManager
+        - channel
+        - sslCipher
+        - keystore
+        - keystorePassword
+      properties:
+        type:
+          type: string
+          enum: [ssl]
+        host:
+          type: string
+          description: IBM MQ broker hostname or IP address.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 1414
+        queueManager:
+          type: string
+          description: IBM MQ queue manager name.
+          example: BLKANCH
+        channel:
+          type: string
+          description: IBM MQ server-connection channel name.
+          example: ANCH.BLK.SVRCONN
+        sslCipher:
+          type: string
+          description: TLS cipher suite for the MQ connection.
+          example: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        keystore:
+          $ref: '#/components/schemas/GcpSecretRef'
+          description: PKCS12 keystore file, base64-encoded, stored as a secret.
+        keystorePassword:
+          $ref: '#/components/schemas/GcpSecretRef'
+          description: Password for the keystore.
+
+    IbmMqCredentialsPassword:
+      type: object
+      required:
+        - type
+        - host
+        - port
+        - queueManager
+        - channel
+        - username
+        - password
+      properties:
+        type:
+          type: string
+          enum: [password]
+        host:
+          type: string
+          description: IBM MQ broker hostname or IP address.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 1414
+        queueManager:
+          type: string
+          description: IBM MQ queue manager name.
+          example: QM1
+        channel:
+          type: string
+          description: IBM MQ server-connection channel name.
+          example: DEV.APP.SVRCONN
+        username:
+          $ref: '#/components/schemas/GcpSecretRef'
+        password:
+          $ref: '#/components/schemas/GcpSecretRef'
+
+    IbmMqCredentials:
+      oneOf:
+        - $ref: '#/components/schemas/IbmMqCredentialsSsl'
+        - $ref: '#/components/schemas/IbmMqCredentialsPassword'
+      discriminator:
+        propertyName: type
+        mapping:
+          ssl: '#/components/schemas/IbmMqCredentialsSsl'
+          password: '#/components/schemas/IbmMqCredentialsPassword'
+      description: |
+        IBM MQ credentials. Supply either SSL keystore credentials or username/password — not both.
+
+    # ── Destination: Create ────────────────────────────────────────────────────
+
+    SftpDestinationCreate:
+      type: object
+      required:
+        - name
+        - transport
+        - credentials
+      properties:
+        name:
+          type: string
+          description: Human-readable destination name. Must be unique among active destinations.
+        transport:
+          type: string
+          enum:
+            - sftp
+          description: Transport type discriminator. Must be `sftp`.
+        credentials:
+          $ref: '#/components/schemas/SftpCredentials'
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Restricts which document types may be delivered to this destination.
+            If omitted, all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: |
+            Retry policy for deliveries to this destination. If omitted, the server
+            default is applied.
+        routingDefaults:
+          $ref: '#/components/schemas/SftpRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+
+    SmtpDestinationCreate:
+      type: object
+      required:
+        - name
+        - transport
+        - credentials
+      properties:
+        name:
+          type: string
+          description: Human-readable destination name. Must be unique among active destinations.
+        transport:
+          type: string
+          enum:
+            - smtp
+          description: Transport type discriminator. Must be `smtp`.
+        credentials:
+          $ref: '#/components/schemas/SmtpCredentials'
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Restricts which document types may be delivered to this destination.
+            If omitted, all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: |
+            Retry policy for deliveries to this destination. If omitted, the server
+            default is applied.
+        routingDefaults:
+          $ref: '#/components/schemas/SmtpRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+
+    IbmMqDestinationCreate:
+      type: object
+      required:
+        - name
+        - transport
+        - credentials
+      properties:
+        name:
+          type: string
+          description: Human-readable destination name. Must be unique among active destinations.
+        transport:
+          type: string
+          enum:
+            - ibmmq
+          description: Transport type discriminator. Must be `ibmmq`.
+        credentials:
+          $ref: '#/components/schemas/IbmMqCredentials'
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Restricts which document types may be delivered to this destination.
+            If omitted, all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: |
+            Retry policy for deliveries to this destination. If omitted, the server
+            default is applied.
+        routingDefaults:
+          $ref: '#/components/schemas/IbmMqRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+
+    DestinationCreateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDestinationCreate'
+        - $ref: '#/components/schemas/SmtpDestinationCreate'
+        - $ref: '#/components/schemas/IbmMqDestinationCreate'
+      discriminator:
+        propertyName: transport
+        mapping:
+          sftp: '#/components/schemas/SftpDestinationCreate'
+          smtp: '#/components/schemas/SmtpDestinationCreate'
+          ibmmq: '#/components/schemas/IbmMqDestinationCreate'
+
+    # ── Destination: Update ────────────────────────────────────────────────────
+
+    SftpDestinationUpdate:
+      type: object
+      required:
+        - destinationId
+        - name
+        - transport
+        - credentials
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of the destination to update.
+        name:
+          type: string
+          description: New name for the destination. Must be unique among active destinations.
+        transport:
+          type: string
+          enum:
+            - sftp
+          description: Transport type cannot be changed. Must match the existing value.
+        credentials:
+          $ref: '#/components/schemas/SftpCredentials'
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Restricts which document types may be delivered to this destination.
+            If omitted, all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: |
+            Retry policy for deliveries to this destination. If omitted, the server
+            default is applied.
+        routingDefaults:
+          $ref: '#/components/schemas/SftpRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+
+    SmtpDestinationUpdate:
+      type: object
+      required:
+        - destinationId
+        - name
+        - transport
+        - credentials
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of the destination to update.
+        name:
+          type: string
+          description: New name for the destination. Must be unique among active destinations.
+        transport:
+          type: string
+          enum:
+            - smtp
+          description: Transport type cannot be changed. Must match the existing value.
+        credentials:
+          $ref: '#/components/schemas/SmtpCredentials'
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Restricts which document types may be delivered to this destination.
+            If omitted, all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: |
+            Retry policy for deliveries to this destination. If omitted, the server
+            default is applied.
+        routingDefaults:
+          $ref: '#/components/schemas/SmtpRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+
+    IbmMqDestinationUpdate:
+      type: object
+      required:
+        - destinationId
+        - name
+        - transport
+        - credentials
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of the destination to update.
+        name:
+          type: string
+          description: New name for the destination. Must be unique among active destinations.
+        transport:
+          type: string
+          enum:
+            - ibmmq
+          description: Transport type cannot be changed. Must match the existing value.
+        credentials:
+          $ref: '#/components/schemas/IbmMqCredentials'
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Restricts which document types may be delivered to this destination.
+            If omitted, all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: |
+            Retry policy for deliveries to this destination. If omitted, the server
+            default is applied.
+        routingDefaults:
+          $ref: '#/components/schemas/IbmMqRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+
+    DestinationUpdateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDestinationUpdate'
+        - $ref: '#/components/schemas/SmtpDestinationUpdate'
+        - $ref: '#/components/schemas/IbmMqDestinationUpdate'
+      discriminator:
+        propertyName: transport
+        mapping:
+          sftp: '#/components/schemas/SftpDestinationUpdate'
+          smtp: '#/components/schemas/SmtpDestinationUpdate'
+          ibmmq: '#/components/schemas/IbmMqDestinationUpdate'
+
+    # ── Destination: Get / Delete / List / Test ────────────────────────────────
+
+    DestinationGetRequest:
+      type: object
+      required:
+        - destinationId
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of the destination to retrieve.
+
+    DestinationDeleteRequest:
+      type: object
+      required:
+        - destinationId
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of the destination to delete.
+
+    DestinationDeleteResponse:
+      type: object
+      required:
+        - destinationId
+        - deletedAt
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The ID of the destination that was deleted.
+        deletedAt:
+          type: string
+          format: date-time
+
+    DestinationListRequest:
+      type: object
+      properties:
+        after:
+          type: string
+          description: Opaque cursor from a previous response's `page.endCursor` field.
+        first:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+          description: Maximum number of results to return per page.
+
+    DestinationSummary:
+      type: object
+      required:
+        - destinationId
+        - name
+        - transport
+        - createdAt
+        - updatedAt
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of this destination.
+        name:
+          type: string
+        transport:
+          type: string
+          enum:
+            - sftp
+            - smtp
+            - ibmmq
+          description: Transport protocol configured for this destination.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DestinationListResponse:
+      type: object
+      required:
+        - data
+        - page
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DestinationSummary'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+
+    DestinationResponse:
+      type: object
+      required:
+        - destinationId
+        - name
+        - transport
+        - credentials
+        - createdAt
+        - updatedAt
+      description: |
+        Full destination record returned by create, get, and update operations.
+        Credential fields contain only GCP secret references — no plaintext secrets are returned.
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of this destination.
+        name:
+          type: string
+        transport:
+          type: string
+          enum:
+            - sftp
+            - smtp
+            - ibmmq
+          description: Transport protocol configured for this destination.
+        credentials:
+          oneOf:
+            - $ref: '#/components/schemas/SftpCredentials'
+            - $ref: '#/components/schemas/SmtpCredentials'
+            - $ref: '#/components/schemas/IbmMqCredentials'
+          description: Credential configuration as submitted. All values are GCP secret references.
+        allowedDocumentTypes:
+          type: array
+          items:
+            type: string
+            enum: [SWIFT_MT, OPAQUE]
+          description: |
+            Document types permitted for deliveries to this destination. Absent if
+            all document types are accepted.
+        retryPolicy:
+          $ref: '#/components/schemas/RetryPolicy'
+          description: Effective retry policy for deliveries to this destination.
+        routingDefaults:
+          oneOf:
+            - $ref: '#/components/schemas/SftpRouting'
+            - $ref: '#/components/schemas/SmtpRouting'
+            - $ref: '#/components/schemas/IbmMqRouting'
+          description: |
+            Default routing values applied when a delivery request omits routing fields.
+            Absent if no defaults are configured.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DestinationTestRequest:
+      type: object
+      required:
+        - destinationId
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The unique ID of the destination to test.
+
+    TestDiagnostics:
+      type: object
+      required:
+        - connectionTimeMs
+        - authSuccessful
+        - targetAccessible
+      properties:
+        connectionTimeMs:
+          type: integer
+          description: Time taken to establish the TCP connection, in milliseconds.
+        authSuccessful:
+          type: boolean
+          description: Whether authentication succeeded using the configured credentials.
+        targetAccessible:
+          type: boolean
+          description: |
+            Whether the delivery target was accessible after authentication:
+            - **SFTP**: base path is listable
+            - **SMTP**: server accepted EHLO and is ready to relay
+            - **IBM MQ**: queue manager accepted the connection
+        errorMessage:
+          type: string
+          description: Human-readable error detail. Present only when `status` is `error`.
+
+    DestinationTestResponse:
+      type: object
+      required:
+        - destinationId
+        - transport
+        - status
+        - diagnostics
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          description: The ID of the destination that was tested.
+        transport:
+          type: string
+          enum:
+            - sftp
+            - smtp
+            - ibmmq
+          description: Transport protocol of the tested destination.
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+          description: |
+            `ok` — connection, authentication, and target access all succeeded.
+            `error` — one or more checks failed; see `diagnostics` for detail.
+        diagnostics:
+          $ref: '#/components/schemas/TestDiagnostics'
+
+    # ── Errors ─────────────────────────────────────────────────────────────────
+
+    ErrorDetails:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Human-readable error description.
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - TRANSPORT_MISMATCH
+            - POLICY_DENIED
+            - DESTINATION_NOT_FOUND
+            - DESTINATION_NAME_CONFLICT
+            - DELIVERY_NOT_FOUND
+            - SECRET_NOT_FOUND
+            - INTERNAL_ERROR
+          description: Machine-readable error code.
+        type:
+          type: string
+          enum:
+            - validation
+            - authorization
+            - not_found
+            - conflict
+            - internal
+          description: Error type classification.
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Additional structured error details as key-value pairs.
+          example:
+            field: destinationName
+            reason: no active destination with this name
+
+    # ── Response Envelopes ─────────────────────────────────────────────────────
+
+    DeliveryCreateEnvelopeResponse:
+      type: object
+      required: [delivery]
+      properties:
+        delivery:
+          $ref: '#/components/schemas/DeliveryCreateResponse'
+
+    DestinationEnvelopeResponse:
+      type: object
+      required: [destination]
+      properties:
+        destination:
+          $ref: '#/components/schemas/DestinationResponse'
+
+    DestinationDeleteEnvelopeResponse:
+      type: object
+      required: [destination]
+      properties:
+        destination:
+          $ref: '#/components/schemas/DestinationDeleteResponse'
+
+    DestinationTestEnvelopeResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          $ref: '#/components/schemas/DestinationTestResponse'
+
+  responses:
+    BadRequest:
+      description: |
+        The request was malformed or failed validation. Check the `error.code` and
+        `error.message` for specifics (e.g. missing required field, invalid secret reference,
+        unknown destination name, invalid document structure).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+        application/protobuf:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+
+    Forbidden:
+      description: |
+        The OPA policy engine denied the request. The authenticated account does not
+        have permission to deliver to the requested destination with the requested
+        document type.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+        application/protobuf:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+
+    NotFound:
+      description: The requested destination does not exist or has been deleted.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+        application/protobuf:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+
+    Conflict:
+      description: |
+        A naming conflict occurred. A destination with the supplied name already exists
+        among active destinations.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+        application/protobuf:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+
+    InternalError:
+      description: An unexpected internal error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+        application/protobuf:
+          schema:
+            $ref: '#/components/schemas/ErrorDetails'
+
+tags:
+  - name: Deliveries
+    description: Submit and query document delivery jobs.
+  - name: Destinations
+    description: Manage delivery destinations and their transport configuration.
