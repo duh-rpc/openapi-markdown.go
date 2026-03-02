@@ -3559,16 +3559,19 @@ components:
 			},
 			wantMd: []string{
 				"#### Field Definitions",
-				"selected by the `transport` field",
-				"**SftpDeliveryCreate**",
-				"**SmtpDeliveryCreate**",
+				"The `transport` field determines the structure of the request:",
+				"When `transport` is `sftp`:",
+				"When `transport` is `smtp`:",
 				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
 				"`transport` *(string, required)* Transport type Enums: `sftp`",
 				"`host` *(string, required)* SFTP hostname",
 				"`transport` *(string, required)* Transport type Enums: `smtp`",
 				"`recipient` *(string, required)* Email recipient",
 			},
-			notWantMd: []string{},
+			notWantMd: []string{
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+			},
 		},
 		{
 			name: "oneOf without discriminator renders variant subsections without intro line",
@@ -3627,12 +3630,14 @@ components:
 			},
 			wantMd: []string{
 				"#### Field Definitions",
+				"Request body is one of the following:",
 				"**SftpDeliveryCreate**",
 				"**SmtpDeliveryCreate**",
 				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
 			},
 			notWantMd: []string{
 				"selected by the",
+				"determines the structure",
 			},
 		},
 		{
@@ -3694,12 +3699,16 @@ components:
 				Title: "Test API",
 			},
 			wantMd: []string{
-				"**SftpDelivery**",
-				"**SmtpDelivery**",
+				"The `transport` field determines the structure of the request:",
+				"When `transport` is `sftp`:",
+				"When `transport` is `smtp`:",
 				"`host` *(string)* SFTP hostname",
 				"`recipient` *(string)* Email recipient",
 			},
-			notWantMd: []string{},
+			notWantMd: []string{
+				"**SftpDelivery**",
+				"**SmtpDelivery**",
+			},
 		},
 		{
 			name: "non-oneOf schemas render field definitions normally",
@@ -3742,6 +3751,7 @@ components:
 			},
 			notWantMd: []string{
 				"selected by the",
+				"determines",
 			},
 		},
 	} {
@@ -3971,15 +3981,18 @@ components:
 			wantMd: []string{
 				"## Shared Schema Definitions",
 				"### DeliveryRequest",
-				"selected by the `transport` field",
-				"**SftpDelivery**",
-				"**SmtpDelivery**",
+				"The `transport` field determines the structure of the request:",
+				"When `transport` is `sftp`:",
+				"When `transport` is `smtp`:",
 				"`host` *(string)* SFTP hostname",
 				"`recipient` *(string)* Email recipient",
 				"Enums: `sftp`",
 				"Enums: `smtp`",
 			},
-			notWantMd: []string{},
+			notWantMd: []string{
+				"**SftpDelivery**",
+				"**SmtpDelivery**",
+			},
 		},
 		{
 			name: "shared allOf schema renders merged properties in shared definitions",
@@ -4163,15 +4176,18 @@ components:
 				"### DeliveryCreateRequest",
 				"`destinationName` *(string, required)* Target destination name",
 				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
-				"selected by the `transport` field",
-				"**SftpDeliveryCreate**",
-				"**SmtpDeliveryCreate**",
+				"The `transport` field determines which additional fields are available:",
+				"When `transport` is `sftp`:",
+				"When `transport` is `smtp`:",
 				"`host` *(string)* SFTP hostname",
 				"`recipient` *(string)* Email recipient",
 				"Enums: `sftp`",
 				"Enums: `smtp`",
 			},
-			notWantMd: []string{},
+			notWantMd: []string{
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -4465,17 +4481,20 @@ components:
 				"#### Field Definitions",
 				"`id` *(string, required)* Unique delivery identifier",
 				"`status` *(string, required)* Current delivery status Enums: `pending`, `completed`, `failed`",
-				"selected by the `transport` field",
-				"**SftpDeliveryResponse**",
+				"The `transport` field determines which additional fields are available:",
+				"When `transport` is `sftp`:",
 				"`transport` *(string, required)* Transport type Enums: `sftp`",
 				"`host` *(string)* SFTP hostname",
 				"`remotePath` *(string)* Remote file path",
-				"**SmtpDeliveryResponse**",
+				"When `transport` is `smtp`:",
 				"`transport` *(string, required)* Transport type Enums: `smtp`",
 				"`recipient` *(string)* Email recipient",
 				"`subject` *(string)* Email subject",
 			},
-			notWantMd: []string{},
+			notWantMd: []string{
+				"**SftpDeliveryResponse**",
+				"**SmtpDeliveryResponse**",
+			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -4572,15 +4591,18 @@ components:
 				"#### Field Definitions",
 				"`destinationName` *(string, required)* Target destination name",
 				"`idempotencyKey` *(string, required)* Unique key for idempotent creation",
-				"selected by the `transport` field",
-				"**SftpDeliveryCreate**",
+				"The `transport` field determines which additional fields are available:",
+				"When `transport` is `sftp`:",
 				"`transport` *(string, required)* Transport type Enums: `sftp`",
 				"`host` *(string, required)* SFTP hostname",
-				"**SmtpDeliveryCreate**",
+				"When `transport` is `smtp`:",
 				"`transport` *(string, required)* Transport type Enums: `smtp`",
 				"`recipient` *(string, required)* Email recipient",
 			},
-			notWantMd: []string{},
+			notWantMd: []string{
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+			},
 		},
 		{
 			name: "oneOf with sibling properties and without discriminator",
@@ -4640,11 +4662,13 @@ components:
 				"#### Field Definitions",
 				"`destinationName` *(string, required)* Target destination name",
 				"`idempotencyKey` *(string)* Unique key for idempotent creation",
+				"Request body is one of the following:",
 				"**SftpDeliveryCreate**",
 				"**SmtpDeliveryCreate**",
 			},
 			notWantMd: []string{
 				"selected by the",
+				"determines",
 			},
 		},
 		{
@@ -4702,17 +4726,131 @@ components:
 			},
 			wantMd: []string{
 				"#### Field Definitions",
-				"selected by the `transport` field",
-				"**SftpDeliveryCreate**",
+				"The `transport` field determines the structure of the request:",
+				"When `transport` is `sftp`:",
 				"`transport` *(string, required)* Transport type Enums: `sftp`",
 				"`host` *(string)* SFTP hostname",
-				"**SmtpDeliveryCreate**",
+				"When `transport` is `smtp`:",
 				"`transport` *(string, required)* Transport type Enums: `smtp`",
 				"`recipient` *(string)* Email recipient",
 			},
 			notWantMd: []string{
 				"`destinationName`",
 				"`idempotencyKey`",
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := conv.Convert([]byte(test.openapi), test.opts)
+
+			require.NoError(t, err)
+			md := string(result.Markdown)
+
+			for _, want := range test.wantMd {
+				assert.Contains(t, md, want)
+			}
+
+			for _, notWant := range test.notWantMd {
+				assert.NotContains(t, md, notWant)
+			}
+		})
+	}
+}
+
+func TestConvertOneOfWithNestedObjects(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		openapi   string
+		opts      conv.ConvertOptions
+		wantMd    []string
+		notWantMd []string
+	}{
+		{
+			name: "oneOf variants with nested objects render inline",
+			openapi: `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /deliveries:
+    post:
+      summary: Create delivery
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCreateRequest'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    DeliveryCreateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SftpDeliveryCreate'
+        - $ref: '#/components/schemas/SmtpDeliveryCreate'
+      discriminator:
+        propertyName: transport
+        mapping:
+          sftp: '#/components/schemas/SftpDeliveryCreate'
+          smtp: '#/components/schemas/SmtpDeliveryCreate'
+    SftpDeliveryCreate:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [sftp]
+          description: Transport type discriminator. Must be sftp.
+        routing:
+          $ref: '#/components/schemas/SftpRouting'
+    SmtpDeliveryCreate:
+      type: object
+      required:
+        - transport
+      properties:
+        transport:
+          type: string
+          enum: [smtp]
+          description: Transport type discriminator. Must be smtp.
+        routing:
+          $ref: '#/components/schemas/SmtpRouting'
+    SftpRouting:
+      type: object
+      properties:
+        remotePath:
+          type: string
+          description: Full path on the remote SFTP server.
+    SmtpRouting:
+      type: object
+      properties:
+        to:
+          type: string
+          description: Recipient email address.`,
+			opts: conv.ConvertOptions{
+				Title: "Test API",
+			},
+			wantMd: []string{
+				"#### Field Definitions",
+				"The `transport` field determines the structure of the request:",
+				"When `transport` is `sftp`:",
+				"`transport` *(string, required)* Transport type discriminator. Must be sftp. Enums: `sftp`",
+				"`routing` *(object)*",
+				"  - `remotePath` *(string)* Full path on the remote SFTP server.",
+				"When `transport` is `smtp`:",
+				"`transport` *(string, required)* Transport type discriminator. Must be smtp. Enums: `smtp`",
+				"  - `to` *(string)* Recipient email address.",
+			},
+			notWantMd: []string{
+				"**SftpDeliveryCreate**",
+				"**SmtpDeliveryCreate**",
+				"**SftpRouting**",
+				"**SmtpRouting**",
+				"*(SftpRouting)*",
+				"*(SmtpRouting)*",
 			},
 		},
 	} {

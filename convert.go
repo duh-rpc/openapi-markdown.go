@@ -436,21 +436,45 @@ func renderSharedSchemaFields(builder *strings.Builder, schema *base.Schema, sch
 		}
 
 		hasSiblingProps := mergedProps != nil && mergedProps.Len() > 0
-		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+		hasDiscriminator := schema.Discriminator != nil && schema.Discriminator.PropertyName != ""
+		if hasDiscriminator {
+			propName := schema.Discriminator.PropertyName
 			if hasSiblingProps {
-				builder.WriteString("Includes one of the following variants, selected by the `")
+				builder.WriteString("The `")
+				builder.WriteString(propName)
+				builder.WriteString("` field determines which additional fields are available:\n\n")
 			} else {
-				builder.WriteString("Request body is one of the following variants, selected by the `")
+				builder.WriteString("The `")
+				builder.WriteString(propName)
+				builder.WriteString("` field determines the structure of the request:\n\n")
 			}
-			builder.WriteString(schema.Discriminator.PropertyName)
-			builder.WriteString("` field:\n\n")
+		} else {
+			builder.WriteString("Request body is one of the following:\n\n")
 		}
 
 		for _, variantProxy := range schema.OneOf {
 			if variantProxy == nil {
 				continue
 			}
-			if variantProxy.IsReference() {
+
+			if hasDiscriminator {
+				discValue := resolveDiscriminatorValue(schema.Discriminator, variantProxy)
+				if discValue != "" {
+					builder.WriteString("When `")
+					builder.WriteString(schema.Discriminator.PropertyName)
+					builder.WriteString("` is `")
+					builder.WriteString(discValue)
+					builder.WriteString("`:\n")
+				} else if variantProxy.IsReference() {
+					ref := variantProxy.GetReference()
+					name, err := extractSchemaName(ref)
+					if err == nil {
+						builder.WriteString("**")
+						builder.WriteString(name)
+						builder.WriteString("**\n")
+					}
+				}
+			} else if variantProxy.IsReference() {
 				ref := variantProxy.GetReference()
 				name, err := extractSchemaName(ref)
 				if err == nil {
@@ -472,7 +496,7 @@ func renderSharedSchemaFields(builder *strings.Builder, schema *base.Schema, sch
 				return err
 			}
 
-			if err := renderSharedFieldsList(builder, fields, nestedDefs, schemaName); err != nil {
+			if err := renderFieldsListInline(builder, fields, nestedDefs, ""); err != nil {
 				return err
 			}
 		}
@@ -1027,6 +1051,56 @@ func extractSchemaName(ref string) (string, error) {
 	return name, nil
 }
 
+// resolveDiscriminatorValue finds the discriminator value for a oneOf variant.
+// It first checks the discriminator mapping (reverse-lookup by $ref), then falls
+// back to the first enum value of the discriminator property in the variant schema.
+func resolveDiscriminatorValue(disc *base.Discriminator, variantProxy *base.SchemaProxy) string {
+	if disc == nil || disc.PropertyName == "" || variantProxy == nil {
+		return ""
+	}
+
+	ref := ""
+	if variantProxy.IsReference() {
+		ref = variantProxy.GetReference()
+	}
+
+	// Check discriminator mapping for a reverse-lookup
+	if ref != "" && disc.Mapping != nil {
+		for pair := disc.Mapping.First(); pair != nil; pair = pair.Next() {
+			if pair.Value() == ref {
+				return pair.Key()
+			}
+		}
+	}
+
+	// Fallback: find the discriminator property in the variant schema and use its first enum value
+	variantSchema := variantProxy.Schema()
+	if variantSchema == nil {
+		return ""
+	}
+
+	mergedProps, _ := mergeAllOfProperties(variantSchema)
+	if mergedProps == nil {
+		return ""
+	}
+
+	for pair := mergedProps.First(); pair != nil; pair = pair.Next() {
+		if pair.Key() != disc.PropertyName {
+			continue
+		}
+		propSchema := pair.Value()
+		if propSchema == nil || propSchema.Schema() == nil {
+			continue
+		}
+		prop := propSchema.Schema()
+		if len(prop.Enum) > 0 {
+			return fmt.Sprintf("%v", prop.Enum[0].Value)
+		}
+	}
+
+	return ""
+}
+
 // getExampleFromSchema generates example from schema using pre-generated examples
 func getExampleFromSchema(schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage) (string, error) {
 	if schemaProxy == nil {
@@ -1266,6 +1340,77 @@ func renderFieldsList(builder *strings.Builder, fields []schemaField, nestedDefs
 	return nil
 }
 
+// renderFieldsListInline renders fields with nested objects indented inline rather than as
+// separate peer-level sections. Used for oneOf variant rendering where the JSON structure
+// should be reflected in the documentation hierarchy.
+func renderFieldsListInline(builder *strings.Builder, fields []schemaField, nestedDefs []schemaDefinition, indent string) error {
+	// Build lookup map from nested definitions
+	nestedMap := make(map[string]schemaDefinition, len(nestedDefs))
+	for _, def := range nestedDefs {
+		nestedMap[def.name] = def
+	}
+
+	for _, field := range fields {
+		builder.WriteString(indent)
+		builder.WriteString("- `")
+		builder.WriteString(field.name)
+		builder.WriteString("`")
+
+		if field.typeStr != "" {
+			builder.WriteString(" *(")
+
+			if field.isArray && !field.isObject {
+				builder.WriteString(field.typeStr)
+				builder.WriteString(" array")
+			} else if field.isArray && field.isObject {
+				builder.WriteString("array of objects")
+			} else if field.isObject {
+				builder.WriteString("object")
+			} else {
+				builder.WriteString(field.typeStr)
+			}
+
+			if field.required {
+				builder.WriteString(", required")
+			}
+			builder.WriteString(")*")
+		}
+
+		if field.description != "" {
+			builder.WriteString(" ")
+			builder.WriteString(field.description)
+		} else if !field.isObject {
+			log.Printf("Warning: Field '%s' is missing a description", field.name)
+		}
+
+		if len(field.enum) > 0 {
+			builder.WriteString(" Enums: ")
+			for i, enumVal := range field.enum {
+				if i > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString("`")
+				fmt.Fprintf(builder, "%v", enumVal)
+				builder.WriteString("`")
+			}
+		}
+
+		builder.WriteString("\n")
+
+		// Inline nested object fields
+		if field.isObject && field.nestedSchemaRef != "" {
+			if nestedDef, ok := nestedMap[field.nestedSchemaRef]; ok {
+				if err := renderFieldsListInline(builder, nestedDef.fields, nestedDefs, indent+"  "); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	builder.WriteString("\n")
+	return nil
+}
+
 // renderFieldDefinitionsContent renders the content of field definitions (without the header)
 func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.SchemaProxy, examples map[string]json.RawMessage, sharedSchemas map[string]schemaUsage) error {
 	if schemaProxy == nil {
@@ -1311,21 +1456,44 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 			}
 		}
 
-		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+		hasDiscriminator := schema.Discriminator != nil && schema.Discriminator.PropertyName != ""
+		if hasDiscriminator {
+			propName := schema.Discriminator.PropertyName
 			if hasSiblingProps {
-				builder.WriteString("Includes one of the following variants, selected by the `")
+				builder.WriteString("The `")
+				builder.WriteString(propName)
+				builder.WriteString("` field determines which additional fields are available:\n\n")
 			} else {
-				builder.WriteString("Request body is one of the following variants, selected by the `")
+				builder.WriteString("The `")
+				builder.WriteString(propName)
+				builder.WriteString("` field determines the structure of the request:\n\n")
 			}
-			builder.WriteString(schema.Discriminator.PropertyName)
-			builder.WriteString("` field:\n\n")
+		} else {
+			builder.WriteString("Request body is one of the following:\n\n")
 		}
 
 		for _, variantProxy := range schema.OneOf {
 			if variantProxy == nil {
 				continue
 			}
-			if variantProxy.IsReference() {
+			if hasDiscriminator {
+				discValue := resolveDiscriminatorValue(schema.Discriminator, variantProxy)
+				if discValue != "" {
+					builder.WriteString("When `")
+					builder.WriteString(schema.Discriminator.PropertyName)
+					builder.WriteString("` is `")
+					builder.WriteString(discValue)
+					builder.WriteString("`:\n")
+				} else if variantProxy.IsReference() {
+					ref := variantProxy.GetReference()
+					name, err := extractSchemaName(ref)
+					if err == nil {
+						builder.WriteString("**")
+						builder.WriteString(name)
+						builder.WriteString("**\n")
+					}
+				}
+			} else if variantProxy.IsReference() {
 				ref := variantProxy.GetReference()
 				name, err := extractSchemaName(ref)
 				if err == nil {
@@ -1334,7 +1502,11 @@ func renderFieldDefinitionsContent(builder *strings.Builder, schemaProxy *base.S
 					builder.WriteString("**\n")
 				}
 			}
-			if err := renderFieldDefinitionsContent(builder, variantProxy, examples, sharedSchemas); err != nil {
+			fields, nestedDefs, err := extractSchemaFields(variantProxy, examples, make(map[string]int), 10)
+			if err != nil {
+				return err
+			}
+			if err := renderFieldsListInline(builder, fields, nestedDefs, ""); err != nil {
 				return err
 			}
 		}
@@ -1388,21 +1560,44 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 			}
 		}
 
-		if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+		hasDiscriminator := schema.Discriminator != nil && schema.Discriminator.PropertyName != ""
+		if hasDiscriminator {
+			propName := schema.Discriminator.PropertyName
 			if hasSiblingProps {
-				builder.WriteString("Includes one of the following variants, selected by the `")
+				builder.WriteString("The `")
+				builder.WriteString(propName)
+				builder.WriteString("` field determines which additional fields are available:\n\n")
 			} else {
-				builder.WriteString("Request body is one of the following variants, selected by the `")
+				builder.WriteString("The `")
+				builder.WriteString(propName)
+				builder.WriteString("` field determines the structure of the request:\n\n")
 			}
-			builder.WriteString(schema.Discriminator.PropertyName)
-			builder.WriteString("` field:\n\n")
+		} else {
+			builder.WriteString("Request body is one of the following:\n\n")
 		}
 
 		for _, variantProxy := range schema.OneOf {
 			if variantProxy == nil {
 				continue
 			}
-			if variantProxy.IsReference() {
+			if hasDiscriminator {
+				discValue := resolveDiscriminatorValue(schema.Discriminator, variantProxy)
+				if discValue != "" {
+					builder.WriteString("When `")
+					builder.WriteString(schema.Discriminator.PropertyName)
+					builder.WriteString("` is `")
+					builder.WriteString(discValue)
+					builder.WriteString("`:\n")
+				} else if variantProxy.IsReference() {
+					ref := variantProxy.GetReference()
+					name, err := extractSchemaName(ref)
+					if err == nil {
+						builder.WriteString("**")
+						builder.WriteString(name)
+						builder.WriteString("**\n")
+					}
+				}
+			} else if variantProxy.IsReference() {
 				ref := variantProxy.GetReference()
 				name, err := extractSchemaName(ref)
 				if err == nil {
@@ -1411,7 +1606,11 @@ func renderFieldDefinitions(builder *strings.Builder, schemaProxy *base.SchemaPr
 					builder.WriteString("**\n")
 				}
 			}
-			if err := renderFieldDefinitionsContent(builder, variantProxy, examples, sharedSchemas); err != nil {
+			fields, nestedDefs, err := extractSchemaFields(variantProxy, examples, make(map[string]int), 10)
+			if err != nil {
+				return err
+			}
+			if err := renderFieldsListInline(builder, fields, nestedDefs, ""); err != nil {
 				return err
 			}
 		}
