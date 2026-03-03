@@ -3351,7 +3351,7 @@ func TestConvertRequestBodyWithoutExample(t *testing.T) {
 		notWantMd []string
 	}{
 		{
-			name: "schema with no example produces request section and field definitions",
+			name: "schema with no explicit example generates example from schema",
 			openapi: `openapi: 3.0.0
 info:
   title: Test API
@@ -3389,13 +3389,12 @@ components:
 			},
 			wantMd: []string{
 				"### Request",
+				"```json",
 				"#### Field Definitions",
 				"`name` *(string, required)* Delivery name",
 				"`email` *(string)* Contact email",
 			},
-			notWantMd: []string{
-				"```json",
-			},
+			notWantMd: []string{},
 		},
 		{
 			name: "schema with explicit example produces request section with JSON and field definitions",
