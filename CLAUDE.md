@@ -70,6 +70,13 @@ The converter renders comprehensive field definitions for request bodies, respon
 - Endpoints reference shared schemas instead of duplicating documentation
 - Same-endpoint reuse (e.g., request + response) does NOT create shared schema
 
+**oneOf / Discriminated Unions**:
+- With discriminator: intro text is `The \`field\` field determines which additional fields are available:` (with sibling props) or `The \`field\` field determines the structure of the request:` (without sibling props)
+- With discriminator: variant headings use `When \`field\` is \`value\`:` format (value resolved from mapping or enum fallback)
+- Without discriminator: intro text is `Request body is one of the following:` and variants use `**SchemaName**` headings
+- Nested objects within oneOf variants render inline with indentation (not as separate peer-level sections)
+- Non-oneOf schemas continue to use flat peer-level format for nested objects
+
 **Nesting and Recursion**:
 - Maximum nesting depth: 10 levels
 - Recursive schemas capped at depth 1 (marked as "(recursive)")
